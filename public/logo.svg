@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="g4" x1="16" y1="16" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F0B429"/>
+      <stop offset="0.5" stop-color="#E8A317"/>
+      <stop offset="1" stop-color="#C9840D"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5D76E" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#C9840D" stop-opacity="0.5"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#0B1220"/>
+  <circle cx="64" cy="64" r="46" stroke="url(#ring)" stroke-width="2.5" fill="none"/>
+  <path d="M64 28 L64 100 M28 64 L100 64" stroke="#1A2744" stroke-width="2"/>
+  <!-- God -->
+  <circle cx="64" cy="42" r="11" fill="url(#g4)"/>
+  <text x="64" y="46" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#0B1220">G</text>
+  <!-- Goals -->
+  <circle cx="86" cy="64" r="11" fill="url(#g4)"/>
+  <text x="86" y="68" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#0B1220">G</text>
+  <!-- Grinding -->
+  <circle cx="64" cy="86" r="11" fill="url(#g4)"/>
+  <text x="64" y="90" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#0B1220">G</text>
+  <!-- Gratitude -->
+  <circle cx="42" cy="64" r="11" fill="url(#g4)"/>
+  <text x="42" y="68" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#0B1220">G</text>
+</svg>
