@@ -84,14 +84,13 @@ export async function maybeNotifyWeeklyReview(): Promise<void> {
   if (existing) return;
 
   const result = await evaluateWeeklyReward(now);
-  await db.notifications.add({
-    id: key,
-    title: result.earned ? 'Weekly reward unlocked' : 'Weekly review ready',
-    body: `${result.reason} Suggestion: ${result.title} (${result.budgetHint})`,
-    type: result.earned ? 'achievement' : 'reminder',
-    read: false,
-    createdAt: now.toISOString(),
-  });
+  const { showLocalNotification } = await import('@/services/notifications/local');
+  await showLocalNotification(
+    result.earned ? 'Weekly reward unlocked' : 'Weekly review ready',
+    `${result.reason} Suggestion: ${result.title} (${result.budgetHint})`,
+    result.earned ? 'achievement' : 'reminder',
+    { id: key },
+  );
 
   await db.activityLogs.add({
     id: uid(),

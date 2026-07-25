@@ -41,6 +41,7 @@ import {
   TabsTrigger,
   Textarea,
 } from '@/components/ui';
+import { BmiPlannerCard } from '@/features/health/BmiPlannerCard';
 import {
   bmiLabel,
   createBodyMeasurement,
@@ -665,6 +666,16 @@ export default function HealthPage() {
                   accentClassName="bg-goals/15 text-goals"
                 />
               </div>
+            )}
+
+            {!loading ? (
+              <BmiPlannerCard
+                currentWeightKg={overview.latestWeight}
+                heightCm={overview.heightCm}
+                bmi={overview.bmi}
+              />
+            ) : (
+              <Skeleton className="h-64" />
             )}
 
             <div className="grid gap-4 lg:grid-cols-2">

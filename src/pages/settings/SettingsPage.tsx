@@ -1,4 +1,4 @@
-import { Download, RotateCcw, Smartphone, Upload } from 'lucide-react';
+import { Download, FileText, RotateCcw, Smartphone, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import {
   Badge,
@@ -50,13 +50,30 @@ export default function SettingsPage() {
   const toggleWidget = useSettingsStore((s) => s.toggleDashboardWidget);
   const coachVoiceEnabled = useSettingsStore((s) => s.coachVoiceEnabled);
   const setCoachVoiceEnabled = useSettingsStore((s) => s.setCoachVoiceEnabled);
+  const notificationsEnabled = useSettingsStore((s) => s.notificationsEnabled);
+  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
 
   async function onExport() {
     try {
       await downloadBackup();
-      addToast('success', 'Backup downloaded.');
+      addToast('success', 'JSON backup downloaded.');
     } catch {
       addToast('danger', 'Backup export failed.');
+    }
+  }
+
+  async function onExportPdf() {
+    setBusy(true);
+    try {
+      const { downloadMissionReportPdf } = await import(
+        '@/services/export/missionReportPdf'
+      );
+      await downloadMissionReportPdf();
+      addToast('success', 'Branded Mission Report PDF downloaded.');
+    } catch {
+      addToast('danger', 'PDF export failed.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -134,6 +151,77 @@ export default function SettingsPage() {
               checked={coachVoiceEnabled}
               onChange={setCoachVoiceEnabled}
             />
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>In-app notifications</CardTitle>
+          </CardHeader>
+          <div className="space-y-4">
+            <Toggle
+              label="Reminders & inbox alerts"
+              checked={notificationsEnabled}
+              onChange={(on) => {
+                setNotificationsEnabled(on);
+                addToast(
+                  'info',
+                  on
+                    ? 'Notifications armed — check the bell in the top bar.'
+                    : 'Notifications paused.',
+                );
+              }}
+            />
+            <p className="text-xs leading-relaxed text-text-muted">
+              Alerts stay on this device only: inbox under the bell, plus a short toast.
+              No accounts, email, or remote push servers.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!notificationsEnabled || busy}
+                onClick={() => {
+                  void (async () => {
+                    const { sendTestNotification } = await import(
+                      '@/services/notifications/local'
+                    );
+                    const ok = await sendTestNotification();
+                    addToast(
+                      ok ? 'success' : 'warning',
+                      ok
+                        ? 'Test sent — open the bell to read it.'
+                        : 'Could not send (notifications may be off).',
+                    );
+                  })();
+                }}
+              >
+                Send test notification
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!notificationsEnabled}
+                onClick={() => {
+                  void (async () => {
+                    const { requestNotificationPermission } = await import(
+                      '@/services/notifications/local'
+                    );
+                    const perm = await requestNotificationPermission();
+                    addToast(
+                      perm === 'granted' ? 'success' : 'info',
+                      perm === 'granted'
+                        ? 'Browser banners allowed (still local-only).'
+                        : perm === 'denied'
+                          ? 'Browser banners blocked — inbox still works.'
+                          : 'Browser notifications unavailable here.',
+                    );
+                  })();
+                }}
+              >
+                Allow browser banners
+              </Button>
+            </div>
           </div>
         </Card>
 
@@ -240,15 +328,20 @@ export default function SettingsPage() {
             <CardTitle>Backup & restore</CardTitle>
           </CardHeader>
           <p className="mb-4 text-sm text-text-muted">
-            Export a full JSON backup of your IndexedDB data, or restore from a previous file.
+            Download a branded Mission Report PDF (logo + navy/gold), keep a full JSON restore
+            backup, or import a previous file. Everything stays on this device.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void onExport()} disabled={busy}>
+            <Button onClick={() => void onExportPdf()} disabled={busy}>
+              <FileText className="size-4" />
+              Export Mission PDF
+            </Button>
+            <Button variant="secondary" onClick={() => void onExport()} disabled={busy}>
               <Download className="size-4" />
-              Export backup
+              Export JSON backup
             </Button>
             <Button
-              variant="secondary"
+              variant="ghost"
               disabled={busy}
               onClick={() => fileRef.current?.click()}
             >

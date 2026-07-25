@@ -10,17 +10,26 @@ export interface BackupPayload {
   tables: Record<string, unknown[]>;
 }
 
-export async function exportAllData(): Promise<BackupPayload> {
+export async function exportAllData(): Promise<BackupPayload & { appPrefs?: unknown }> {
   const tables: Record<string, unknown[]> = {};
 
   for (const name of TABLE_NAMES) {
     tables[name] = await db.table(name).toArray();
   }
 
+  let appPrefs: unknown;
+  try {
+    const raw = localStorage.getItem('g4-settings');
+    appPrefs = raw ? JSON.parse(raw) : undefined;
+  } catch {
+    appPrefs = undefined;
+  }
+
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
     tables,
+    appPrefs,
   };
 }
 
@@ -44,6 +53,15 @@ export async function importAllData(data: unknown): Promise<void> {
       }
     }
   });
+
+  const prefs = (payload as { appPrefs?: unknown }).appPrefs;
+  if (prefs && typeof prefs === 'object') {
+    try {
+      localStorage.setItem('g4-settings', JSON.stringify(prefs));
+    } catch {
+      /* ignore quota */
+    }
+  }
 }
 
 export async function downloadBackup(): Promise<void> {

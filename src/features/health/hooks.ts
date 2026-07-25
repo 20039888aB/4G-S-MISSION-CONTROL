@@ -1,7 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/database';
 import { uid } from '@/lib/utils';
+import { bmiLabel, calcBmi } from '@/services/health/bmi';
+import { useSettingsStore } from '@/stores/settingsStore';
 import type { BodyMeasurement, HealthMetric, Workout } from '@/types';
+
+export { bmiLabel, calcBmi };
 
 export const WORKOUT_TYPES = [
   'running',
@@ -26,19 +30,6 @@ export function daysAgoKey(days: number, from = new Date()): string {
 
 export function lastNDateKeys(n: number, from = new Date()): string[] {
   return Array.from({ length: n }, (_, i) => daysAgoKey(n - 1 - i, from));
-}
-
-export function calcBmi(weightKg?: number, heightCm?: number): number | null {
-  if (!weightKg || !heightCm || heightCm <= 0) return null;
-  const m = heightCm / 100;
-  return Math.round((weightKg / (m * m)) * 10) / 10;
-}
-
-export function bmiLabel(bmi: number): string {
-  if (bmi < 18.5) return 'Underweight';
-  if (bmi < 25) return 'Normal';
-  if (bmi < 30) return 'Overweight';
-  return 'Obese';
 }
 
 function byDateDesc<T extends { date: string; createdAt: string }>(a: T, b: T) {
@@ -116,6 +107,7 @@ export function useBodyMeasurementsLive() {
 }
 
 export function useHealthOverview() {
+  const profileHeight = useSettingsStore((s) => s.profileHeightCm);
   return useLiveQuery(async () => {
     const since = daysAgoKey(29);
     const [metrics, workouts, bodies] = await Promise.all([
@@ -135,7 +127,9 @@ export function useHealthOverview() {
     const latestWeightDate =
       latestBodyWithWeight?.date ?? latestMetricWeight?.date;
 
-    const heightCm = bodies.find((b) => typeof b.heightCm === 'number')?.heightCm;
+    const heightCm =
+      profileHeight ||
+      bodies.find((b) => typeof b.heightCm === 'number')?.heightCm;
     const bmi = calcBmi(latestWeight, heightCm);
 
     const recent7 = lastNDateKeys(7);
@@ -212,7 +206,7 @@ export function useHealthOverview() {
       latestMetric: metrics[0] ?? null,
       latestBody: bodies[0] ?? null,
     };
-  }, []);
+  }, [profileHeight]);
 }
 
 export async function createHealthMetric(
@@ -386,6 +380,9 @@ export async function createBodyMeasurement(
     createdAt: now,
   };
   await db.bodyMeasurements.add(row);
+  if (row.heightCm != null) {
+    useSettingsStore.getState().setProfileHeightCm(row.heightCm);
+  }
   await db.activityLogs.add({
     id: uid(),
     entity: 'health',
@@ -419,6 +416,9 @@ export async function updateBodyMeasurement(
     createdAt: existing.createdAt,
   };
   await db.bodyMeasurements.put(row);
+  if (row.heightCm != null) {
+    useSettingsStore.getState().setProfileHeightCm(row.heightCm);
+  }
   await db.activityLogs.add({
     id: uid(),
     entity: 'health',

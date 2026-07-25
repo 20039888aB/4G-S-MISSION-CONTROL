@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/brand/Logo';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { Button } from '@/components/ui';
 import { db } from '@/db/database';
 import { formatGreeting } from '@/services/quotes/engine';
@@ -33,14 +34,14 @@ export function TopBar() {
   const setCommandOpen = useUiStore((s) => s.setCommandPaletteOpen);
   const addToast = useUiStore((s) => s.addToast);
 
-  const unread = useLiveQuery(
-    () => db.notifications.filter((n) => !n.read).count(),
-    [],
-  ) ?? 0;
+  const unread =
+    useLiveQuery(() => db.notifications.filter((n) => !n.read).count(), []) ?? 0;
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const menuRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
   const greeting = formatGreeting(displayName, now);
   const isDashboard = location.pathname === '/' || location.pathname === '';
 
@@ -48,6 +49,9 @@ export function TopBar() {
     function onDoc(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) {
         setMenuOpen(false);
+      }
+      if (!notifRef.current?.contains(event.target as Node)) {
+        setNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', onDoc);
@@ -125,23 +129,35 @@ export function TopBar() {
           {theme === 'light' ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="relative px-2"
-          onClick={() => addToast('info', 'Notifications center coming online next.')}
-          aria-label="Notifications"
-        >
-          <Bell className="size-4" />
-          {unread > 0 ? (
-            <span className="absolute top-1 right-1 size-1.5 rounded-full bg-accent" />
-          ) : null}
-        </Button>
+        <div className="relative" ref={notifRef}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative px-2"
+            onClick={() => {
+              setNotifOpen((v) => !v);
+              setMenuOpen(false);
+            }}
+            aria-label="Notifications"
+            aria-expanded={notifOpen}
+          >
+            <Bell className="size-4" />
+            {unread > 0 ? (
+              <span className="absolute -top-0.5 -right-0.5 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-[#0b1220]">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            ) : null}
+          </Button>
+          <NotificationCenter open={notifOpen} onClose={() => setNotifOpen(false)} />
+        </div>
 
         <div className="relative" ref={menuRef}>
           <button
             type="button"
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => {
+              setMenuOpen((v) => !v);
+              setNotifOpen(false);
+            }}
             className={cn(
               'inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-border bg-bg-elevated px-2.5 py-1.5 text-sm',
               'hover:border-accent/40',
