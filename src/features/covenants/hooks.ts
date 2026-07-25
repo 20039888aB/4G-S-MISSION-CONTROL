@@ -10,10 +10,15 @@ function addDays(dateKey: string, days: number): string {
 }
 
 export function useCovenantsLive() {
-  return useLiveQuery(
-    () => db.streakCovenants.orderBy('createdAt').reverse().toArray(),
-    [],
-  );
+  return useLiveQuery(async () => {
+    try {
+      // Sort in memory — avoids Dexie crashes when createdAt isn't indexed yet.
+      const rows = await db.streakCovenants.toArray();
+      return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    } catch {
+      return [];
+    }
+  }, []);
 }
 
 export async function createCovenant(input: {

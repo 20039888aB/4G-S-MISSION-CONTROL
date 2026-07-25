@@ -20,10 +20,14 @@ const DEFAULT_PROMPTS = [
 ];
 
 export function useFaithGrindLinksLive() {
-  return useLiveQuery(
-    () => db.faithGrindLinks.orderBy('createdAt').reverse().toArray(),
-    [],
-  );
+  return useLiveQuery(async () => {
+    try {
+      const rows = await db.faithGrindLinks.toArray();
+      return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    } catch {
+      return [];
+    }
+  }, []);
 }
 
 export async function createFaithGrindLink(input: {

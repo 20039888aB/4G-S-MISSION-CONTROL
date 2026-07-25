@@ -12,10 +12,14 @@ import { showLocalNotification } from '@/services/notifications/local';
 import type { WarRoomSession } from '@/types';
 
 export function useWarRoomSessionsLive() {
-  return useLiveQuery(
-    () => db.warRoomSessions.orderBy('createdAt').reverse().toArray(),
-    [],
-  );
+  return useLiveQuery(async () => {
+    try {
+      const rows = await db.warRoomSessions.toArray();
+      return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    } catch {
+      return [];
+    }
+  }, []);
 }
 
 export async function runSundayWarRoom(scores: {

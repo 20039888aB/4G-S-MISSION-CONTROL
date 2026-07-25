@@ -201,3 +201,9 @@ export const SCHEMA_V5: Record<TableName, string> = {
   faithGrindLinks: 'id, habitId, active, createdAt',
   warRoomSessions: 'id, weekKey, createdAt',
 };
+
+/** Version 6 — index createdAt on covenants for stable listing. */
+export const SCHEMA_V6: Record<TableName, string> = {
+  ...SCHEMA_V5,
+  streakCovenants: 'id, status, startDate, endDate, createdAt',
+};

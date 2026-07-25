@@ -6,6 +6,7 @@ import {
   SCHEMA_V3,
   SCHEMA_V4,
   SCHEMA_V5,
+  SCHEMA_V6,
   type G4Tables,
   type TableName,
 } from '@/db/schema';
@@ -74,6 +75,7 @@ export class G4Database extends Dexie {
     this.version(3).stores(SCHEMA_V3);
     this.version(4).stores(SCHEMA_V4);
     this.version(5).stores(SCHEMA_V5);
+    this.version(6).stores(SCHEMA_V6);
   }
 }
 
