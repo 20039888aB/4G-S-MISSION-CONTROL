@@ -19,6 +19,8 @@ interface AuthState {
   username: string | null;
   displayName: string | null;
   initialize: () => Promise<void>;
+  /** Re-check IndexedDB for an existing account (after updates / recovery). */
+  refreshSetupState: () => Promise<boolean>;
   setup: (
     username: string,
     password: string,
@@ -45,7 +47,6 @@ function writeSession(username: string): void {
     authenticatedAt: new Date().toISOString(),
   };
   const json = JSON.stringify(payload);
-  // Prefer localStorage so PWA updates / tab closes don't force a fresh start.
   localStorage.setItem(SESSION_KEY, json);
   sessionStorage.removeItem(SESSION_KEY);
 }
@@ -53,6 +54,30 @@ function writeSession(username: string): void {
 function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_KEY);
+}
+
+async function findCredentialsByUsername(
+  username: string,
+): Promise<AuthCredentials | undefined> {
+  const trimmed = username.trim();
+  if (!trimmed) return undefined;
+
+  const exact = await db.credentials.where('username').equals(trimmed).first();
+  if (exact) return exact;
+
+  // Case-insensitive fallback (phones / autocorrect).
+  const all = await db.credentials.toArray();
+  const lower = trimmed.toLowerCase();
+  return all.find((c) => c.username.toLowerCase() === lower);
+}
+
+async function countAccounts(): Promise<number> {
+  try {
+    await db.open();
+    return await db.credentials.count();
+  } catch {
+    return 0;
+  }
 }
 
 let initializePromise: Promise<void> | null = null;
@@ -76,22 +101,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await db.open();
         await seedDefaultsIfEmpty();
 
-        const credentials = await db.credentials.toCollection().first();
-        const setupComplete = Boolean(credentials);
+        const setupComplete = (await db.credentials.count()) > 0;
         const session = readSession();
 
         if (setupComplete && session?.username) {
-          const profile = await db.profiles
-            .where('username')
-            .equals(session.username)
-            .first();
+          const credentials = await findCredentialsByUsername(session.username);
+          const profile = credentials
+            ? await db.profiles
+                .where('username')
+                .equals(credentials.username)
+                .first()
+            : undefined;
 
-          if (profile && credentials?.username === session.username) {
+          if (credentials && profile) {
             set({
               isAuthenticated: true,
               isInitialized: true,
               isSetupComplete: true,
-              username: profile.username,
+              username: credentials.username,
               displayName: profile.displayName,
             });
             return;
@@ -108,15 +135,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       } catch (err) {
         console.error('[G4] Auth/DB init failed', err);
-        // Still mark initialized so splash can dismiss and show recovery UI.
+        // If the DB still has credentials, prefer Login over Setup.
+        const setupComplete = (await countAccounts()) > 0;
         set({
           isAuthenticated: false,
           isInitialized: true,
-          isSetupComplete: false,
+          isSetupComplete: setupComplete,
           username: null,
           displayName: null,
         });
-        throw err;
       }
     })();
 
@@ -127,10 +154,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  refreshSetupState: async () => {
+    const setupComplete = (await countAccounts()) > 0;
+    set({ isSetupComplete: setupComplete });
+    return setupComplete;
+  },
+
   setup: async (username, password, displayName) => {
+    await db.open();
     const existing = await db.credentials.count();
-    if (existing > 0 || get().isSetupComplete) {
-      throw new Error('Setup already completed.');
+    if (existing > 0) {
+      // Keep UI flag in sync so callers switch to Login instead of Setup.
+      set({ isSetupComplete: true });
+      throw new Error(
+        'An account already exists on this device. Use Log in instead.',
+      );
+    }
+    if (get().isSetupComplete) {
+      // Stale flag with empty DB — clear and allow setup.
+      set({ isSetupComplete: false });
     }
 
     const now = new Date().toISOString();
@@ -170,11 +212,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (username, password) => {
-    const credentials = await db.credentials
-      .where('username')
-      .equals(username.trim())
-      .first();
-
+    await db.open();
+    const credentials = await findCredentialsByUsername(username);
     if (!credentials) return false;
 
     const ok = await verifyPassword(password, credentials.passwordHash);
@@ -189,6 +228,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       isAuthenticated: true,
       isSetupComplete: true,
+      isInitialized: true,
       username: credentials.username,
       displayName: profile?.displayName ?? credentials.username,
     });

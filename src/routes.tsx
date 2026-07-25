@@ -6,8 +6,7 @@ import { Skeleton } from '@/components/ui';
 import { AppLayout } from '@/layouts/AppLayout';
 import { lazyRetry } from '@/lib/lazyRetry';
 
-const SetupPage = lazyRetry(() => import('@/pages/auth/SetupPage'));
-const LoginPage = lazyRetry(() => import('@/pages/auth/LoginPage'));
+const AuthPage = lazyRetry(() => import('@/pages/auth/AuthPage'));
 const DashboardPage = lazyRetry(() => import('@/pages/dashboard/DashboardPage'));
 const HabitsPage = lazyRetry(() => import('@/pages/habits/HabitsPage'));
 const GoalsPage = lazyRetry(() => import('@/pages/goals/GoalsPage'));
@@ -49,11 +48,9 @@ export function AppRoutes() {
     <RouteErrorBoundary label="Mission Control hit a snag">
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route element={<GuestRoute mode="setup" />}>
-            <Route path="/setup" element={<SetupPage />} />
-          </Route>
-          <Route element={<GuestRoute mode="login" />}>
-            <Route path="/login" element={<LoginPage />} />
+          <Route element={<GuestRoute />}>
+            <Route path="/login" element={<AuthPage />} />
+            <Route path="/setup" element={<AuthPage />} />
           </Route>
 
           <Route path="/share/:payload" element={<SharePage />} />
