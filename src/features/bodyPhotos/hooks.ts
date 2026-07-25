@@ -6,10 +6,14 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import type { BodyPhoto } from '@/types';
 
 export function useBodyPhotosLive() {
-  return useLiveQuery(
-    () => db.bodyPhotos.orderBy('date').reverse().toArray(),
-    [],
-  );
+  return useLiveQuery(async () => {
+    try {
+      const rows = await db.bodyPhotos.toArray();
+      return rows.sort((a, b) => b.date.localeCompare(a.date));
+    } catch {
+      return [];
+    }
+  }, []);
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {

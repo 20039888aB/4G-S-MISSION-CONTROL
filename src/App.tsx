@@ -24,6 +24,8 @@ export default function App() {
 
   useEffect(() => {
     void initialize();
+    // Clear one-shot lazy-chunk retry flag after a successful boot.
+    sessionStorage.removeItem('g4-chunk-retry');
   }, [initialize]);
 
   useEffect(() => {

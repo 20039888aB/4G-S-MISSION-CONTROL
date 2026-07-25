@@ -6,7 +6,6 @@ import {
   isoWeekKey,
   pillarsFromMission,
 } from '@/services/mission/callsign';
-import { downloadMissionReportPdf } from '@/services/export/missionReportPdf';
 import { evaluateWeeklyReward } from '@/services/rewards/weekly';
 import { showLocalNotification } from '@/services/notifications/local';
 import type { WarRoomSession } from '@/types';
@@ -91,5 +90,9 @@ export async function deleteWarRoomSession(id: string): Promise<void> {
 }
 
 export async function exportWarRoomPdf(): Promise<void> {
+  // Dynamic import keeps Mission Systems light on phones (jspdf is large).
+  const { downloadMissionReportPdf } = await import(
+    '@/services/export/missionReportPdf'
+  );
   await downloadMissionReportPdf();
 }

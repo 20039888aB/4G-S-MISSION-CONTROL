@@ -440,6 +440,39 @@ export default function SettingsPage() {
           </div>
         </Card>
 
+        <Card className="lg:col-span-2 border-accent/20">
+          <CardHeader>
+            <CardTitle>Fix blank screens on phone</CardTitle>
+          </CardHeader>
+          <p className="mb-3 text-sm text-text-muted">
+            If a page stays black after an update, reload app files only. Your habits, health, and
+            login stay on this device.
+          </p>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => {
+              void (async () => {
+                setBusy(true);
+                try {
+                  const regs = await navigator.serviceWorker?.getRegistrations();
+                  await Promise.all((regs ?? []).map((r) => r.unregister()));
+                  const keys = await caches?.keys();
+                  await Promise.all((keys ?? []).map((k) => caches.delete(k)));
+                  addToast('success', 'Refreshing app files… data kept.');
+                  window.setTimeout(() => window.location.reload(), 400);
+                } catch {
+                  addToast('danger', 'Could not refresh caches.');
+                  setBusy(false);
+                }
+              })();
+            }}
+          >
+            <RotateCcw className="size-4" />
+            Reload app files (keep data)
+          </Button>
+        </Card>
+
         <Card className="border-danger/30">
           <CardHeader>
             <CardTitle>Danger zone</CardTitle>

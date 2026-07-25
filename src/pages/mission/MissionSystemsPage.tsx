@@ -20,6 +20,7 @@ import {
   PageHeader,
   Progress,
   Select,
+  Skeleton,
   Tabs,
   TabsContent,
   TabsList,
@@ -27,6 +28,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import { db } from '@/db/database';
+import { ensureMissionTables } from '@/db/ensureTables';
 import {
   checkInCovenant,
   createCovenant,
@@ -61,16 +63,21 @@ import { useUiStore } from '@/stores/uiStore';
 import type { CovenantDuration, FaithGrindLink, StreakCovenant } from '@/types';
 
 export default function MissionSystemsPage() {
+  const [ready, setReady] = useState(false);
+  const [bootError, setBootError] = useState<string | null>(null);
   const scores = useMissionScores();
   const pillars = useMemo(() => pillarsFromMission(scores), [scores]);
   const identity = useMemo(() => buildCallsign(pillars), [pillars]);
   const covenants = useCovenantsLive();
   const links = useFaithGrindLinksLive();
   const warRooms = useWarRoomSessionsLive();
-  const habits = useLiveQuery(
-    () => db.habits.filter((h) => !h.archived).sortBy('sortOrder'),
-    [],
-  );
+  const habits = useLiveQuery(async () => {
+    try {
+      return await db.habits.filter((h) => !h.archived).sortBy('sortOrder');
+    } catch {
+      return [];
+    }
+  }, []);
   const addToast = useUiStore((s) => s.addToast);
 
   const [covOpen, setCovOpen] = useState(false);
@@ -79,50 +86,91 @@ export default function MissionSystemsPage() {
   const [editingLink, setEditingLink] = useState<FaithGrindLink | null>(null);
   const [shareNote, setShareNote] = useState('');
   const [shareUrl, setShareUrl] = useState('');
+  const [busyPdf, setBusyPdf] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void ensureMissionTables()
+      .then(() => {
+        if (alive) setReady(true);
+      })
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setBootError(err instanceof Error ? err.message : 'Could not open mission storage.');
+        setReady(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function onShare() {
-    const card = await buildAccountabilityCard(scores, shareNote);
-    const url = accountabilityShareUrl(card);
-    setShareUrl(url);
     try {
-      await navigator.clipboard.writeText(url);
-      addToast('success', 'Scorecard link copied — share with an accountability partner.');
+      const card = await buildAccountabilityCard(scores, shareNote);
+      const url = accountabilityShareUrl(card);
+      setShareUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        addToast('success', 'Scorecard link copied.');
+      } catch {
+        addToast('info', 'Link ready — copy it below.');
+      }
     } catch {
-      addToast('info', 'Link ready — copy it below.');
+      addToast('danger', 'Could not build scorecard.');
     }
   }
 
+  if (!ready) {
+    return (
+      <div className="space-y-4">
+        <PageHeader eyebrow="Mission" title="Mission Systems" description="Loading…" />
+        <Skeleton className="h-40" />
+        <Skeleton className="h-24" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-8">
       <PageHeader
         eyebrow="Mission"
         title="Mission Systems"
-        description="Callsign, covenants, Sunday War Room, Faith × Grind, and accountability — all local CRUD."
+        description="Callsign, covenants, Sunday War Room, Faith × Grind, and accountability."
       />
 
+      {bootError ? (
+        <Card className="border-warning/40">
+          <p className="text-sm text-warning">Storage notice: {bootError}</p>
+          <p className="mt-1 text-xs text-text-muted">
+            You can still use Callsign. If tabs fail, reload app files from Settings or the update
+            banner — your data is not deleted.
+          </p>
+        </Card>
+      ) : null}
+
       <Tabs defaultValue="callsign">
-        <TabsList className="flex w-full flex-wrap">
+        <TabsList className="flex w-full flex-wrap gap-1">
           <TabsTrigger value="callsign">Callsign</TabsTrigger>
           <TabsTrigger value="covenants">Covenants</TabsTrigger>
           <TabsTrigger value="warroom">War Room</TabsTrigger>
           <TabsTrigger value="faith">Faith × Grind</TabsTrigger>
-          <TabsTrigger value="account">Accountability</TabsTrigger>
+          <TabsTrigger value="account">Share</TabsTrigger>
         </TabsList>
 
         <TabsContent value="callsign">
           <Card glass>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Crosshair className="size-4 text-accent" />
+              <div className="flex min-w-0 items-center gap-2">
+                <Crosshair className="size-4 shrink-0 text-accent" />
                 <CardTitle>Living 4G Callsign</CardTitle>
               </div>
               <Badge tone="accent">{identity.rank}</Badge>
             </CardHeader>
-            <p className="font-display text-3xl font-bold text-accent">
+            <p className="break-words font-display text-2xl font-bold text-accent sm:text-3xl">
               {scores.loading ? '…' : identity.callsign}
             </p>
             <p className="mt-2 text-sm text-text-muted">{identity.blurb}</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-4 grid gap-3 grid-cols-2 lg:grid-cols-4">
               {(
                 [
                   ['God', pillars.god, 'god'],
@@ -136,7 +184,7 @@ export default function MissionSystemsPage() {
                     <span className="text-text-muted">{label}</span>
                     <Badge tone={tone}>{value}</Badge>
                   </div>
-                  <Progress value={value} size="sm" />
+                  <Progress value={Number.isFinite(value) ? value : 0} size="sm" />
                 </div>
               ))}
             </div>
@@ -163,12 +211,14 @@ export default function MissionSystemsPage() {
           ) : (
             <ul className="space-y-3">
               {covenants.map((c) => {
-                const kept = c.checkIns.filter((x) => x.kept).length;
-                const pct = Math.round((kept / c.durationDays) * 100);
+                const checkIns = Array.isArray(c.checkIns) ? c.checkIns : [];
+                const kept = checkIns.filter((x) => x?.kept).length;
+                const days = c.durationDays || 1;
+                const pct = Math.round((kept / days) * 100);
                 return (
                   <Card key={c.id}>
                     <CardHeader>
-                      <CardTitle>{c.name}</CardTitle>
+                      <CardTitle className="break-words">{c.name}</CardTitle>
                       <Badge
                         tone={
                           c.status === 'sealed'
@@ -183,21 +233,29 @@ export default function MissionSystemsPage() {
                     </CardHeader>
                     <p className="text-sm text-text-muted">{c.vow}</p>
                     <p className="mt-1 text-xs text-text-muted">
-                      {c.startDate} → {c.endDate} · {c.durationDays} days · {kept} kept
+                      {c.startDate} → {c.endDate} · {days} days · {kept} kept
                     </p>
                     <Progress value={pct} className="mt-2" />
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => void checkInCovenant(c.id, true).then(() => addToast('success', 'Day kept'))}
+                        onClick={() =>
+                          void checkInCovenant(c.id, true)
+                            .then(() => addToast('success', 'Day kept'))
+                            .catch(() => addToast('danger', 'Check-in failed'))
+                        }
                       >
                         Check-in kept
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => void checkInCovenant(c.id, false).then(() => addToast('warning', 'Marked broken day'))}
+                        onClick={() =>
+                          void checkInCovenant(c.id, false)
+                            .then(() => addToast('warning', 'Marked broken day'))
+                            .catch(() => addToast('danger', 'Update failed'))
+                        }
                       >
                         Missed
                       </Button>
@@ -215,9 +273,9 @@ export default function MissionSystemsPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() =>
-                          void sealCovenant(c.id, 'Ceremony complete.').then(() =>
-                            addToast('success', 'Covenant sealed'),
-                          )
+                          void sealCovenant(c.id, 'Ceremony complete.')
+                            .then(() => addToast('success', 'Covenant sealed'))
+                            .catch(() => addToast('danger', 'Seal failed'))
                         }
                       >
                         Seal ceremony
@@ -226,7 +284,9 @@ export default function MissionSystemsPage() {
                         size="sm"
                         variant="danger"
                         onClick={() =>
-                          void deleteCovenant(c.id).then(() => addToast('info', 'Deleted'))
+                          void deleteCovenant(c.id)
+                            .then(() => addToast('info', 'Deleted'))
+                            .catch(() => addToast('danger', 'Delete failed'))
                         }
                       >
                         Delete
@@ -253,20 +313,34 @@ export default function MissionSystemsPage() {
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() =>
-                  void runSundayWarRoom(scores).then((s) =>
-                    addToast('success', `War Room ready · ${s.callsign}`),
-                  )
+                  void runSundayWarRoom(scores)
+                    .then((s) => addToast('success', `War Room ready · ${s.callsign}`))
+                    .catch(() => addToast('danger', 'War Room failed'))
                 }
               >
                 Run War Room
               </Button>
-              <Button variant="secondary" onClick={() => void exportWarRoomPdf()}>
+              <Button
+                variant="secondary"
+                loading={busyPdf}
+                onClick={() => {
+                  setBusyPdf(true);
+                  void exportWarRoomPdf()
+                    .then(() => addToast('success', 'PDF downloaded'))
+                    .catch(() => addToast('danger', 'PDF export failed'))
+                    .finally(() => setBusyPdf(false));
+                }}
+              >
                 Export weekly PDF
               </Button>
             </div>
           </Card>
           {!warRooms?.length ? (
-            <EmptyState icon={Flame} title="No sessions yet" description="Run your first War Room." />
+            <EmptyState
+              icon={Flame}
+              title="No sessions yet"
+              description="Run your first War Room."
+            />
           ) : (
             <ul className="space-y-3">
               {warRooms.map((w) => (
@@ -321,13 +395,14 @@ export default function MissionSystemsPage() {
           ) : (
             <ul className="space-y-3">
               {links.map((l) => {
-                const habitName = habits?.find((h) => h.id === l.habitId)?.name ?? 'Habit';
+                const habitName =
+                  habits?.find((h) => h.id === l.habitId)?.name ?? 'Habit';
                 return (
                   <Card key={l.id}>
                     <CardHeader>
-                      <CardTitle>{habitName}</CardTitle>
+                      <CardTitle className="break-words">{habitName}</CardTitle>
                       <Badge tone={l.active ? 'success' : 'neutral'}>
-                        {l.active ? 'Active' : 'Paused'} · {l.unlockCount} unlocks
+                        {l.active ? 'Active' : 'Paused'} · {l.unlockCount ?? 0} unlocks
                       </Badge>
                     </CardHeader>
                     <p className="text-sm text-accent">{l.scripture}</p>
@@ -376,8 +451,7 @@ export default function MissionSystemsPage() {
               </div>
             </CardHeader>
             <p className="mb-3 text-sm text-text-muted">
-              Share a read-only weekly card (scores + habits only — no journals or finances).
-              Works offline as a local hash link.
+              Share a read-only weekly card (scores + habits only). No journals or finances.
             </p>
             <Textarea
               label="Optional note to partner"
@@ -440,6 +514,8 @@ function CovenantModal({
   const [duration, setDuration] = useState<CovenantDuration>(21);
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [habitId, setHabitId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const addToast = useUiStore((s) => s.addToast);
 
   useEffect(() => {
     if (!open) return;
@@ -447,34 +523,47 @@ function CovenantModal({
     setVow(initial?.vow ?? '');
     setDuration(initial?.durationDays ?? 21);
     setStartDate(initial?.startDate ?? new Date().toISOString().slice(0, 10));
-    setHabitId(initial?.habitIds[0] ?? habitOptions[0]?.value ?? '');
+    setHabitId(initial?.habitIds?.[0] ?? habitOptions[0]?.value ?? '');
   }, [open, initial, habitOptions]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (initial) {
-      await updateCovenant(initial.id, {
-        name,
-        vow,
-        habitIds: habitId ? [habitId] : [],
-      });
-    } else {
-      await createCovenant({
-        name,
-        vow,
-        durationDays: duration,
-        startDate,
-        habitIds: habitId ? [habitId] : [],
-      });
+    setSaving(true);
+    try {
+      if (initial) {
+        await updateCovenant(initial.id, {
+          name,
+          vow,
+          habitIds: habitId ? [habitId] : [],
+        });
+      } else {
+        await createCovenant({
+          name,
+          vow,
+          durationDays: duration,
+          startDate,
+          habitIds: habitId ? [habitId] : [],
+        });
+      }
+      onSaved();
+    } catch {
+      addToast('danger', 'Could not save covenant.');
+    } finally {
+      setSaving(false);
     }
-    onSaved();
   }
 
   return (
     <Modal open={open} onClose={onClose} title={initial ? 'Edit covenant' : 'New covenant'}>
       <form onSubmit={onSubmit} className="space-y-3">
         <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
-        <Textarea label="Vow" value={vow} onChange={(e) => setVow(e.target.value)} required rows={3} />
+        <Textarea
+          label="Vow"
+          value={vow}
+          onChange={(e) => setVow(e.target.value)}
+          required
+          rows={3}
+        />
         {!initial ? (
           <>
             <Select
@@ -506,7 +595,9 @@ function CovenantModal({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit" loading={saving}>
+            Save
+          </Button>
         </div>
       </form>
     </Modal>
@@ -529,6 +620,8 @@ function FaithLinkModal({
   const [habitId, setHabitId] = useState('');
   const [scripture, setScripture] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [saving, setSaving] = useState(false);
+  const addToast = useUiStore((s) => s.addToast);
 
   useEffect(() => {
     if (!open) return;
@@ -539,16 +632,27 @@ function FaithLinkModal({
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (initial) {
-      await updateFaithGrindLink(initial.id, {
-        habitId,
-        scripture,
-        reflectionPrompt: prompt,
-      });
-    } else {
-      await createFaithGrindLink({ habitId, scripture, reflectionPrompt: prompt });
+    if (!habitId) {
+      addToast('warning', 'Create a habit first, then link scripture.');
+      return;
     }
-    onSaved();
+    setSaving(true);
+    try {
+      if (initial) {
+        await updateFaithGrindLink(initial.id, {
+          habitId,
+          scripture,
+          reflectionPrompt: prompt,
+        });
+      } else {
+        await createFaithGrindLink({ habitId, scripture, reflectionPrompt: prompt });
+      }
+      onSaved();
+    } catch {
+      addToast('danger', 'Could not save faith link.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -558,7 +662,11 @@ function FaithLinkModal({
           label="Habit"
           value={habitId}
           onChange={(e) => setHabitId(e.target.value)}
-          options={habitOptions}
+          options={
+            habitOptions.length
+              ? habitOptions
+              : [{ value: '', label: 'No habits yet — create one first' }]
+          }
         />
         <Textarea
           label="Scripture"
@@ -578,7 +686,9 @@ function FaithLinkModal({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit" loading={saving}>
+            Save
+          </Button>
         </div>
       </form>
     </Modal>

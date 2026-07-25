@@ -1,32 +1,34 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { GuestRoute, ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { RouteErrorBoundary } from '@/components/errors/RouteErrorBoundary';
 import { Skeleton } from '@/components/ui';
 import { AppLayout } from '@/layouts/AppLayout';
+import { lazyRetry } from '@/lib/lazyRetry';
 
-const SetupPage = lazy(() => import('@/pages/auth/SetupPage'));
-const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
-const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
-const HabitsPage = lazy(() => import('@/pages/habits/HabitsPage'));
-const GoalsPage = lazy(() => import('@/pages/goals/GoalsPage'));
-const TasksPage = lazy(() => import('@/pages/tasks/TasksPage'));
-const HealthPage = lazy(() => import('@/pages/health/HealthPage'));
-const FinancePage = lazy(() => import('@/pages/finance/FinancePage'));
-const BusinessPage = lazy(() => import('@/pages/business/BusinessPage'));
-const WishlistPage = lazy(() => import('@/pages/wishlist/WishlistPage'));
-const LearningPage = lazy(() => import('@/pages/learning/LearningPage'));
-const SpiritualPage = lazy(() => import('@/pages/spiritual/SpiritualPage'));
-const GratitudePage = lazy(() => import('@/pages/gratitude/GratitudePage'));
-const JournalPage = lazy(() => import('@/pages/journal/JournalPage'));
-const CalendarPage = lazy(() => import('@/pages/calendar/CalendarPage'));
-const NotesPage = lazy(() => import('@/pages/notes/NotesPage'));
-const DailyReviewPage = lazy(() => import('@/pages/review/DailyReviewPage'));
-const AiCoachPage = lazy(() => import('@/pages/ai-coach/AiCoachPage'));
-const AchievementsPage = lazy(() => import('@/pages/achievements/AchievementsPage'));
-const StatisticsPage = lazy(() => import('@/pages/statistics/StatisticsPage'));
-const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
-const MissionSystemsPage = lazy(() => import('@/pages/mission/MissionSystemsPage'));
-const SharePage = lazy(() => import('@/pages/share/SharePage'));
+const SetupPage = lazyRetry(() => import('@/pages/auth/SetupPage'));
+const LoginPage = lazyRetry(() => import('@/pages/auth/LoginPage'));
+const DashboardPage = lazyRetry(() => import('@/pages/dashboard/DashboardPage'));
+const HabitsPage = lazyRetry(() => import('@/pages/habits/HabitsPage'));
+const GoalsPage = lazyRetry(() => import('@/pages/goals/GoalsPage'));
+const TasksPage = lazyRetry(() => import('@/pages/tasks/TasksPage'));
+const HealthPage = lazyRetry(() => import('@/pages/health/HealthPage'));
+const FinancePage = lazyRetry(() => import('@/pages/finance/FinancePage'));
+const BusinessPage = lazyRetry(() => import('@/pages/business/BusinessPage'));
+const WishlistPage = lazyRetry(() => import('@/pages/wishlist/WishlistPage'));
+const LearningPage = lazyRetry(() => import('@/pages/learning/LearningPage'));
+const SpiritualPage = lazyRetry(() => import('@/pages/spiritual/SpiritualPage'));
+const GratitudePage = lazyRetry(() => import('@/pages/gratitude/GratitudePage'));
+const JournalPage = lazyRetry(() => import('@/pages/journal/JournalPage'));
+const CalendarPage = lazyRetry(() => import('@/pages/calendar/CalendarPage'));
+const NotesPage = lazyRetry(() => import('@/pages/notes/NotesPage'));
+const DailyReviewPage = lazyRetry(() => import('@/pages/review/DailyReviewPage'));
+const AiCoachPage = lazyRetry(() => import('@/pages/ai-coach/AiCoachPage'));
+const AchievementsPage = lazyRetry(() => import('@/pages/achievements/AchievementsPage'));
+const StatisticsPage = lazyRetry(() => import('@/pages/statistics/StatisticsPage'));
+const SettingsPage = lazyRetry(() => import('@/pages/settings/SettingsPage'));
+const MissionSystemsPage = lazyRetry(() => import('@/pages/mission/MissionSystemsPage'));
+const SharePage = lazyRetry(() => import('@/pages/share/SharePage'));
 
 function RouteFallback() {
   return (
@@ -44,44 +46,53 @@ function RouteFallback() {
 
 export function AppRoutes() {
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
-        <Route element={<GuestRoute mode="setup" />}>
-          <Route path="/setup" element={<SetupPage />} />
-        </Route>
-        <Route element={<GuestRoute mode="login" />}>
-          <Route path="/login" element={<LoginPage />} />
-        </Route>
-
-        <Route path="/share/:payload" element={<SharePage />} />
-
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AppLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="mission-systems" element={<MissionSystemsPage />} />
-            <Route path="habits" element={<HabitsPage />} />
-            <Route path="goals" element={<GoalsPage />} />
-            <Route path="tasks" element={<TasksPage />} />
-            <Route path="health" element={<HealthPage />} />
-            <Route path="finance" element={<FinancePage />} />
-            <Route path="business" element={<BusinessPage />} />
-            <Route path="wishlist" element={<WishlistPage />} />
-            <Route path="learning" element={<LearningPage />} />
-            <Route path="spiritual" element={<SpiritualPage />} />
-            <Route path="gratitude" element={<GratitudePage />} />
-            <Route path="journal" element={<JournalPage />} />
-            <Route path="calendar" element={<CalendarPage />} />
-            <Route path="notes" element={<NotesPage />} />
-            <Route path="review" element={<DailyReviewPage />} />
-            <Route path="ai-coach" element={<AiCoachPage />} />
-            <Route path="achievements" element={<AchievementsPage />} />
-            <Route path="statistics" element={<StatisticsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+    <RouteErrorBoundary label="Mission Control hit a snag">
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route element={<GuestRoute mode="setup" />}>
+            <Route path="/setup" element={<SetupPage />} />
           </Route>
-        </Route>
+          <Route element={<GuestRoute mode="login" />}>
+            <Route path="/login" element={<LoginPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
+          <Route path="/share/:payload" element={<SharePage />} />
+
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route
+                path="mission-systems"
+                element={
+                  <RouteErrorBoundary label="Mission Systems hit a snag">
+                    <MissionSystemsPage />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route path="habits" element={<HabitsPage />} />
+              <Route path="goals" element={<GoalsPage />} />
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="health" element={<HealthPage />} />
+              <Route path="finance" element={<FinancePage />} />
+              <Route path="business" element={<BusinessPage />} />
+              <Route path="wishlist" element={<WishlistPage />} />
+              <Route path="learning" element={<LearningPage />} />
+              <Route path="spiritual" element={<SpiritualPage />} />
+              <Route path="gratitude" element={<GratitudePage />} />
+              <Route path="journal" element={<JournalPage />} />
+              <Route path="calendar" element={<CalendarPage />} />
+              <Route path="notes" element={<NotesPage />} />
+              <Route path="review" element={<DailyReviewPage />} />
+              <Route path="ai-coach" element={<AiCoachPage />} />
+              <Route path="achievements" element={<AchievementsPage />} />
+              <Route path="statistics" element={<StatisticsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </RouteErrorBoundary>
   );
 }
