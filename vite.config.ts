@@ -10,8 +10,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // Prompt the user — never force-reload or touch IndexedDB on deploy.
-      registerType: 'prompt',
+      // Auto-apply new builds; IndexedDB / local data is never wiped by SW updates.
+      registerType: 'autoUpdate',
       injectRegister: null,
       includeAssets: [
         'favicon.svg',
@@ -93,9 +93,8 @@ export default defineConfig({
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
-        // Wait for user to accept the update banner (preserves open session + data).
         clientsClaim: true,
-        skipWaiting: false,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',

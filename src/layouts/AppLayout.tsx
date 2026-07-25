@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Outlet, useLocation } from 'react-router-dom';
 import { QuickCapture } from '@/components/capture/QuickCapture';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
-import { UpdatePrompt } from '@/components/pwa/UpdatePrompt';
 import { Sidebar } from '@/layouts/Sidebar';
 import { TopBar } from '@/layouts/TopBar';
 
@@ -37,7 +36,6 @@ export function AppLayout() {
 
       <QuickCapture />
       <InstallPrompt />
-      <UpdatePrompt />
     </div>
   );
 }
