@@ -72,39 +72,52 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     initializePromise = (async () => {
-      await db.open();
-      await seedDefaultsIfEmpty();
+      try {
+        await db.open();
+        await seedDefaultsIfEmpty();
 
-      const credentials = await db.credentials.toCollection().first();
-      const setupComplete = Boolean(credentials);
-      const session = readSession();
+        const credentials = await db.credentials.toCollection().first();
+        const setupComplete = Boolean(credentials);
+        const session = readSession();
 
-      if (setupComplete && session?.username) {
-        const profile = await db.profiles
-          .where('username')
-          .equals(session.username)
-          .first();
+        if (setupComplete && session?.username) {
+          const profile = await db.profiles
+            .where('username')
+            .equals(session.username)
+            .first();
 
-        if (profile && credentials?.username === session.username) {
-          set({
-            isAuthenticated: true,
-            isInitialized: true,
-            isSetupComplete: true,
-            username: profile.username,
-            displayName: profile.displayName,
-          });
-          return;
+          if (profile && credentials?.username === session.username) {
+            set({
+              isAuthenticated: true,
+              isInitialized: true,
+              isSetupComplete: true,
+              username: profile.username,
+              displayName: profile.displayName,
+            });
+            return;
+          }
+          clearSession();
         }
-        clearSession();
-      }
 
-      set({
-        isAuthenticated: false,
-        isInitialized: true,
-        isSetupComplete: setupComplete,
-        username: null,
-        displayName: null,
-      });
+        set({
+          isAuthenticated: false,
+          isInitialized: true,
+          isSetupComplete: setupComplete,
+          username: null,
+          displayName: null,
+        });
+      } catch (err) {
+        console.error('[G4] Auth/DB init failed', err);
+        // Still mark initialized so splash can dismiss and show recovery UI.
+        set({
+          isAuthenticated: false,
+          isInitialized: true,
+          isSetupComplete: false,
+          username: null,
+          displayName: null,
+        });
+        throw err;
+      }
     })();
 
     try {

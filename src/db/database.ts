@@ -76,6 +76,12 @@ export class G4Database extends Dexie {
     this.version(4).stores(SCHEMA_V4);
     this.version(5).stores(SCHEMA_V5);
     this.version(6).stores(SCHEMA_V6);
+    /**
+     * Compat shim: some phone installs were left at IndexedDB version 60.
+     * Opening with max version < existing version throws VersionError and the
+     * splash hangs forever (black screen). Same schema — no data wipe.
+     */
+    this.version(60).stores(SCHEMA_V6);
   }
 }
 
