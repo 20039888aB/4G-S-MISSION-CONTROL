@@ -77,9 +77,9 @@ export class G4Database extends Dexie {
     this.version(5).stores(SCHEMA_V5);
     this.version(6).stores(SCHEMA_V6);
     /**
-     * Compat shim: some phone installs were left at IndexedDB version 60.
-     * Opening with max version < existing version throws VersionError and the
-     * splash hangs forever (black screen). Same schema — no data wipe.
+     * Dexie stores version N as IndexedDB version N*10.
+     * Keep v60 declared so installs already upgraded to IDB 600 keep opening.
+     * Same stores — additive only, never wipes user data.
      */
     this.version(60).stores(SCHEMA_V6);
   }
@@ -288,6 +288,7 @@ function defaultSettings(): AppSettings {
 /**
  * Seeds reference data only when empty.
  * Never resets credentials, profiles, habit logs, health, finance, etc.
+ * Quote catalog refresh is deferred so phones don't hang on the splash screen.
  */
 export async function seedDefaultsIfEmpty(): Promise<void> {
   await db.open();
@@ -295,14 +296,12 @@ export async function seedDefaultsIfEmpty(): Promise<void> {
   await db.transaction(
     'rw',
     db.habits,
-    db.quotes,
     db.achievements,
     db.settings,
     async () => {
-      const [habitCount, quoteCount, achievementCount, settingsCount, credCount] =
+      const [habitCount, achievementCount, settingsCount, credCount] =
         await Promise.all([
           db.habits.count(),
-          db.quotes.count(),
           db.achievements.count(),
           db.settings.count(),
           db.credentials.count(),
@@ -332,12 +331,6 @@ export async function seedDefaultsIfEmpty(): Promise<void> {
         await db.habits.bulkPut(habits);
       }
 
-      // Quotes are catalog-only (not user content). Safe to refresh the library.
-      if (quoteCount < QUOTE_CATALOG_COUNT) {
-        await db.quotes.clear();
-        await db.quotes.bulkPut(QUOTE_CATALOG);
-      }
-
       if (achievementCount === 0) {
         await db.achievements.bulkPut(
           DEFAULT_ACHIEVEMENTS.map((item, index) => ({
@@ -352,6 +345,25 @@ export async function seedDefaultsIfEmpty(): Promise<void> {
       }
     },
   );
+
+  // Non-blocking: ~1100 quotes must not stall login/splash on mobile.
+  void refreshQuoteCatalogInBackground();
+}
+
+async function refreshQuoteCatalogInBackground(): Promise<void> {
+  try {
+    const quoteCount = await db.quotes.count();
+    if (quoteCount >= QUOTE_CATALOG_COUNT) return;
+    await db.quotes.clear();
+    // Chunk writes so UI stays responsive on phones.
+    const chunk = 100;
+    for (let i = 0; i < QUOTE_CATALOG.length; i += chunk) {
+      await db.quotes.bulkPut(QUOTE_CATALOG.slice(i, i + chunk));
+      await new Promise((r) => window.setTimeout(r, 0));
+    }
+  } catch (err) {
+    console.warn('[G4] Quote catalog refresh skipped', err);
+  }
 }
 
 export function getTable(name: TableName) {
