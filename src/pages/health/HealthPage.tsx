@@ -48,7 +48,11 @@ import {
   useBodyPhotosLive,
 } from '@/features/bodyPhotos/hooks';
 import { BmiPlannerCard } from '@/features/health/BmiPlannerCard';
-import { QuickMetricTile } from '@/features/health/QuickMetricEditor';
+import {
+  QuickMetricModal,
+  QuickMetricTile,
+  type QuickMetricKey,
+} from '@/features/health/QuickMetricEditor';
 import {
   bmiLabel,
   createBodyMeasurement,
@@ -598,6 +602,7 @@ export default function HealthPage() {
   const [photoWaist, setPhotoWaist] = useState('');
   const [photoNotes, setPhotoNotes] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [statEditKey, setStatEditKey] = useState<QuickMetricKey | null>(null);
 
   const [metricOpen, setMetricOpen] = useState(false);
   const [workoutOpen, setWorkoutOpen] = useState(false);
@@ -668,17 +673,20 @@ export default function HealthPage() {
                   }
                   icon={Scale}
                   glass
+                  onClick={() => setStatEditKey('weightKg')}
                 />
                 <StatCard
                   label="BMI"
                   value={overview.bmi != null ? overview.bmi : '—'}
                   hint={
                     overview.bmi != null
-                      ? bmiLabel(overview.bmi)
+                      ? `${bmiLabel(overview.bmi)} · edit weight`
                       : 'Needs weight + height'
                   }
                   icon={Activity}
                   accentClassName="bg-success/15 text-success"
+                  onClick={() => setStatEditKey('weightKg')}
+                  clickHint="Tap to update weight"
                 />
                 <StatCard
                   label="Avg sleep (7d)"
@@ -687,6 +695,7 @@ export default function HealthPage() {
                   }
                   hint="Target ~7.5 hours"
                   icon={Moon}
+                  onClick={() => setStatEditKey('sleepHours')}
                 />
                 <StatCard
                   label="Avg water (7d)"
@@ -698,9 +707,18 @@ export default function HealthPage() {
                   hint={`${overview.workoutsThisMonth} workouts this month`}
                   icon={Droplets}
                   accentClassName="bg-goals/15 text-goals"
+                  onClick={() => setStatEditKey('waterMl')}
                 />
               </div>
             )}
+
+            <QuickMetricModal
+              open={statEditKey != null}
+              onClose={() => setStatEditKey(null)}
+              metricKey={statEditKey ?? 'weightKg'}
+              latest={overview?.latestMetric}
+              onSaved={() => setStatEditKey(null)}
+            />
 
             {!loading ? (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">

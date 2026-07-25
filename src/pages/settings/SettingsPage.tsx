@@ -104,6 +104,7 @@ export default function SettingsPage() {
     try {
       await db.delete();
       localStorage.removeItem('g4-settings');
+      localStorage.removeItem('g4_session');
       sessionStorage.removeItem('g4_session');
       addToast('success', 'Local data cleared. Reloading…');
       window.setTimeout(() => window.location.reload(), 500);

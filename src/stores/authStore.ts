@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from '@/lib/crypto';
 import { uid } from '@/lib/utils';
 import type { AuthCredentials, UserProfile } from '@/types';
 
+/** Persist across reloads/updates (not wiped by service-worker cache swaps). */
 const SESSION_KEY = 'g4_session';
 
 interface SessionPayload {
@@ -29,7 +30,8 @@ interface AuthState {
 
 function readSession(): SessionPayload | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const raw =
+      localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as SessionPayload;
   } catch {
@@ -42,10 +44,14 @@ function writeSession(username: string): void {
     username,
     authenticatedAt: new Date().toISOString(),
   };
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+  const json = JSON.stringify(payload);
+  // Prefer localStorage so PWA updates / tab closes don't force a fresh start.
+  localStorage.setItem(SESSION_KEY, json);
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 function clearSession(): void {
+  localStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_KEY);
 }
 

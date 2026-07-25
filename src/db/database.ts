@@ -79,10 +79,12 @@ export class G4Database extends Dexie {
 
 export const db = new G4Database();
 
-/** Stub for future schema migrations. */
+/**
+ * Schema upgrades are additive only (new tables/indexes).
+ * Never delete user rows here — app updates must preserve login + history.
+ */
 export async function migrateIfNeeded(): Promise<void> {
-  // Versioned Dexie upgrades handle structural changes.
-  // Use this hook for data backfills when bumping schema versions.
+  // Dexie version().stores() handles additive migrations safely.
 }
 
 const DEFAULT_HABIT_NAMES = [
@@ -275,6 +277,10 @@ function defaultSettings(): AppSettings {
   };
 }
 
+/**
+ * Seeds reference data only when empty.
+ * Never resets credentials, profiles, habit logs, health, finance, etc.
+ */
 export async function seedDefaultsIfEmpty(): Promise<void> {
   await db.open();
 
@@ -285,17 +291,19 @@ export async function seedDefaultsIfEmpty(): Promise<void> {
     db.achievements,
     db.settings,
     async () => {
-      const [habitCount, quoteCount, achievementCount, settingsCount] =
+      const [habitCount, quoteCount, achievementCount, settingsCount, credCount] =
         await Promise.all([
           db.habits.count(),
           db.quotes.count(),
           db.achievements.count(),
           db.settings.count(),
+          db.credentials.count(),
         ]);
 
       const now = new Date().toISOString();
 
-      if (habitCount === 0) {
+      // Only seed starter habits for brand-new installs (no account yet).
+      if (habitCount === 0 && credCount === 0) {
         const habits: Habit[] = DEFAULT_HABIT_NAMES.map((name, index) => {
           const meta = HABIT_META[name];
           return {
@@ -316,7 +324,7 @@ export async function seedDefaultsIfEmpty(): Promise<void> {
         await db.habits.bulkPut(habits);
       }
 
-      // Upgrade to the full ~1000 time-aware library when missing or outdated.
+      // Quotes are catalog-only (not user content). Safe to refresh the library.
       if (quoteCount < QUOTE_CATALOG_COUNT) {
         await db.quotes.clear();
         await db.quotes.bulkPut(QUOTE_CATALOG);

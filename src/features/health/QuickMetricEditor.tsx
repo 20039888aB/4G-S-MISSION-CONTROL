@@ -87,7 +87,7 @@ export function QuickMetricTile({
   );
 }
 
-function QuickMetricModal({
+export function QuickMetricModal({
   open,
   onClose,
   metricKey,
