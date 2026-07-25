@@ -49,6 +49,8 @@ export type HealthMetricInput = {
   bloodPressureSystolic?: number;
   bloodPressureDiastolic?: number;
   heartRate?: number;
+  spo2Pct?: number;
+  temperatureC?: number;
   bloodSugar?: number;
   calories?: number;
   proteinG?: number;
@@ -226,6 +228,8 @@ export async function createHealthMetric(
     bloodPressureSystolic: optNum(input.bloodPressureSystolic),
     bloodPressureDiastolic: optNum(input.bloodPressureDiastolic),
     heartRate: optNum(input.heartRate),
+    spo2Pct: optNum(input.spo2Pct),
+    temperatureC: optNum(input.temperatureC),
     bloodSugar: optNum(input.bloodSugar),
     calories: optNum(input.calories),
     proteinG: optNum(input.proteinG),
@@ -264,6 +268,8 @@ export async function updateHealthMetric(
     bloodPressureSystolic: optNum(input.bloodPressureSystolic),
     bloodPressureDiastolic: optNum(input.bloodPressureDiastolic),
     heartRate: optNum(input.heartRate),
+    spo2Pct: optNum(input.spo2Pct),
+    temperatureC: optNum(input.temperatureC),
     bloodSugar: optNum(input.bloodSugar),
     calories: optNum(input.calories),
     proteinG: optNum(input.proteinG),

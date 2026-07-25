@@ -84,7 +84,12 @@ export type ActivityEntity =
   | 'note'
   | 'checkin'
   | 'coach'
+  | 'covenant'
+  | 'warroom'
   | 'system';
+
+export type CovenantDuration = 7 | 21 | 40;
+export type CovenantStatus = 'active' | 'completed' | 'broken' | 'sealed';
 
 /** Persisted AI Coach chat turn (local-only). */
 export interface CoachChatMessage {
@@ -224,6 +229,9 @@ export interface HealthMetric {
   bloodPressureSystolic?: number;
   bloodPressureDiastolic?: number;
   heartRate?: number;
+  /** SpO2 blood oxygen percentage (modern pulse-ox reading). */
+  spo2Pct?: number;
+  temperatureC?: number;
   bloodSugar?: number;
   calories?: number;
   proteinG?: number;
@@ -231,6 +239,59 @@ export interface HealthMetric {
   fatG?: number;
   notes?: string;
   createdAt: string;
+}
+
+export interface StreakCovenant {
+  id: string;
+  name: string;
+  vow: string;
+  durationDays: CovenantDuration;
+  startDate: string;
+  endDate: string;
+  status: CovenantStatus;
+  habitIds: string[];
+  checkIns: { date: string; kept: boolean; note?: string }[];
+  sealedAt?: string;
+  reviewNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BodyPhoto {
+  id: string;
+  date: string;
+  /** data URL (jpeg/webp) — local only */
+  imageData: string;
+  weightKg?: number;
+  waistCm?: number;
+  bmi?: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface FaithGrindLink {
+  id: string;
+  habitId: string;
+  scripture: string;
+  reflectionPrompt: string;
+  active: boolean;
+  unlockCount: number;
+  lastUnlockedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WarRoomSession {
+  id: string;
+  weekKey: string;
+  score: number;
+  callsign: string;
+  debrief: string;
+  rewardTitle: string;
+  rewardEarned: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Workout {
@@ -578,4 +639,21 @@ export interface Quote {
   /** Time windows this quote prefers. Empty/`any` = always eligible. */
   slots?: TimeSlot[];
   tags: string[];
+}
+
+/** Compact read-only scorecard for accountability sharing (no private journals). */
+export interface AccountabilityCard {
+  v: 1;
+  name: string;
+  callsign: string;
+  weekKey: string;
+  overall: number;
+  god: number;
+  goals: number;
+  grinding: number;
+  gratitude: number;
+  habitsDone: number;
+  habitsTarget: number;
+  note?: string;
+  generatedAt: string;
 }

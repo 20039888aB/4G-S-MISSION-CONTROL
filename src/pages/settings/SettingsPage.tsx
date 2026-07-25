@@ -31,9 +31,11 @@ const WIDGET_OPTIONS = [
 
 export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const boxRef = useRef<HTMLInputElement>(null);
   const addToast = useUiStore((s) => s.addToast);
   const [resetArmed, setResetArmed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [boxPassword, setBoxPassword] = useState('');
   const pwa = usePwaInstall();
 
   const theme = useSettingsStore((s) => s.theme);
@@ -356,6 +358,81 @@ export default function SettingsPage() {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) void onImportFile(file);
+                e.target.value = '';
+              }}
+            />
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-2 border-accent/25">
+          <CardHeader>
+            <CardTitle>Black box (encrypted migrate)</CardTitle>
+          </CardHeader>
+          <p className="mb-3 text-sm text-text-muted">
+            Password-locked offline package for phone ↔ phone restore. No cloud. Use a password
+            you will remember.
+          </p>
+          <Input
+            label="Black box password"
+            type="password"
+            value={boxPassword}
+            onChange={(e) => setBoxPassword(e.target.value)}
+            placeholder="Min 6 characters"
+          />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              disabled={busy || boxPassword.length < 6}
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const { downloadBlackBox } = await import(
+                      '@/services/security/blackBox'
+                    );
+                    await downloadBlackBox(boxPassword);
+                    addToast('success', 'Black box downloaded.');
+                  } catch (err) {
+                    addToast(
+                      'danger',
+                      err instanceof Error ? err.message : 'Black box export failed.',
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+            >
+              Export black box
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={busy || boxPassword.length < 6}
+              onClick={() => boxRef.current?.click()}
+            >
+              Import black box
+            </Button>
+            <input
+              ref={boxRef}
+              type="file"
+              accept=".g4box,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const { importBlackBox } = await import(
+                      '@/services/security/blackBox'
+                    );
+                    await importBlackBox(file, boxPassword);
+                    addToast('success', 'Black box restored. Reloading…');
+                    window.setTimeout(() => window.location.reload(), 600);
+                  } catch {
+                    addToast('danger', 'Import failed — check password/file.');
+                    setBusy(false);
+                  }
+                })();
                 e.target.value = '';
               }}
             />

@@ -23,6 +23,10 @@ import { useMissionScores } from '@/hooks/useMissionScores';
 import { toggleHabitToday } from '@/features/habits/hooks';
 import { useTimedQuote } from '@/hooks/useTimedQuote';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import {
+  buildCallsign,
+  pillarsFromMission,
+} from '@/services/mission/callsign';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 
@@ -69,6 +73,7 @@ export default function DashboardPage() {
       .reduce((s, t) => s + t.amount, 0) ?? 0;
 
   const enabled = (id: string) => widgets.includes(id);
+  const callsign = buildCallsign(pillarsFromMission(scores)).callsign;
 
   return (
     <div className="space-y-6">
@@ -78,7 +83,13 @@ export default function DashboardPage() {
             <Logo size="md" variant="full" showWordmark={false} />
             <div className="min-w-0">
               <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">
-                Mission Briefing · {greeting.label}
+                {scores.loading ? 'Mission Control' : callsign}
+              </p>
+              <p className="text-[10px] text-text-muted">
+                Mission Briefing · {greeting.label} ·{' '}
+                <Link to="/mission-systems" className="text-accent hover:underline">
+                  Mission Systems
+                </Link>
               </p>
               <h2 className="font-display text-2xl font-bold text-text sm:text-3xl">
                 {greeting.line}

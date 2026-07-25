@@ -5,6 +5,7 @@ import {
   SCHEMA_V2,
   SCHEMA_V3,
   SCHEMA_V4,
+  SCHEMA_V5,
   type G4Tables,
   type TableName,
 } from '@/db/schema';
@@ -54,6 +55,10 @@ export class G4Database extends Dexie {
   settings!: EntityTable<G4Tables['settings'], 'id'>;
   activityLogs!: EntityTable<G4Tables['activityLogs'], 'id'>;
   quotes!: EntityTable<G4Tables['quotes'], 'id'>;
+  streakCovenants!: EntityTable<G4Tables['streakCovenants'], 'id'>;
+  bodyPhotos!: EntityTable<G4Tables['bodyPhotos'], 'id'>;
+  faithGrindLinks!: EntityTable<G4Tables['faithGrindLinks'], 'id'>;
+  warRoomSessions!: EntityTable<G4Tables['warRoomSessions'], 'id'>;
 
   constructor() {
     super('G4MissionControl');
@@ -68,6 +73,7 @@ export class G4Database extends Dexie {
     });
     this.version(3).stores(SCHEMA_V3);
     this.version(4).stores(SCHEMA_V4);
+    this.version(5).stores(SCHEMA_V5);
   }
 }
 

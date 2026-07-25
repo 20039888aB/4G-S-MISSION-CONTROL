@@ -25,6 +25,8 @@ const AiCoachPage = lazy(() => import('@/pages/ai-coach/AiCoachPage'));
 const AchievementsPage = lazy(() => import('@/pages/achievements/AchievementsPage'));
 const StatisticsPage = lazy(() => import('@/pages/statistics/StatisticsPage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
+const MissionSystemsPage = lazy(() => import('@/pages/mission/MissionSystemsPage'));
+const SharePage = lazy(() => import('@/pages/share/SharePage'));
 
 function RouteFallback() {
   return (
@@ -51,9 +53,12 @@ export function AppRoutes() {
           <Route path="/login" element={<LoginPage />} />
         </Route>
 
+        <Route path="/share/:payload" element={<SharePage />} />
+
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="mission-systems" element={<MissionSystemsPage />} />
             <Route path="habits" element={<HabitsPage />} />
             <Route path="goals" element={<GoalsPage />} />
             <Route path="tasks" element={<TasksPage />} />

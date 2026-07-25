@@ -41,7 +41,14 @@ import {
   TabsTrigger,
   Textarea,
 } from '@/components/ui';
+import {
+  createBodyPhoto,
+  deleteBodyPhoto,
+  updateBodyPhoto,
+  useBodyPhotosLive,
+} from '@/features/bodyPhotos/hooks';
 import { BmiPlannerCard } from '@/features/health/BmiPlannerCard';
+import { QuickMetricTile } from '@/features/health/QuickMetricEditor';
 import {
   bmiLabel,
   createBodyMeasurement,
@@ -139,6 +146,8 @@ function MetricForm({
     numStr(initial?.bloodPressureDiastolic),
   );
   const [heartRate, setHeartRate] = useState(numStr(initial?.heartRate));
+  const [spo2Pct, setSpo2Pct] = useState(numStr(initial?.spo2Pct));
+  const [temperatureC, setTemperatureC] = useState(numStr(initial?.temperatureC));
   const [bloodSugar, setBloodSugar] = useState(numStr(initial?.bloodSugar));
   const [sleepHours, setSleepHours] = useState(numStr(initial?.sleepHours));
   const [waterMl, setWaterMl] = useState(numStr(initial?.waterMl));
@@ -160,6 +169,8 @@ function MetricForm({
       bloodPressureSystolic: parseOptional(systolic),
       bloodPressureDiastolic: parseOptional(diastolic),
       heartRate: parseOptional(heartRate),
+      spo2Pct: parseOptional(spo2Pct),
+      temperatureC: parseOptional(temperatureC),
       bloodSugar: parseOptional(bloodSugar),
       sleepHours: parseOptional(sleepHours),
       waterMl: parseOptional(waterMl),
@@ -209,6 +220,22 @@ function MetricForm({
           min="0"
           value={heartRate}
           onChange={(e) => setHeartRate(e.target.value)}
+        />
+        <Input
+          label="SpO₂ (%)"
+          type="number"
+          min="0"
+          max="100"
+          step="0.1"
+          value={spo2Pct}
+          onChange={(e) => setSpo2Pct(e.target.value)}
+        />
+        <Input
+          label="Temperature (°C)"
+          type="number"
+          step="0.1"
+          value={temperatureC}
+          onChange={(e) => setTemperatureC(e.target.value)}
         />
         <Input
           label="BP systolic"
@@ -564,7 +591,13 @@ export default function HealthPage() {
   const metrics = useHealthMetricsLive();
   const workouts = useWorkoutsLive();
   const bodies = useBodyMeasurementsLive();
+  const photos = useBodyPhotosLive();
   const addToast = useUiStore((s) => s.addToast);
+  const [photoDate, setPhotoDate] = useState(todayKey());
+  const [photoWeight, setPhotoWeight] = useState('');
+  const [photoWaist, setPhotoWaist] = useState('');
+  const [photoNotes, setPhotoNotes] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const [metricOpen, setMetricOpen] = useState(false);
   const [workoutOpen, setWorkoutOpen] = useState(false);
@@ -607,6 +640,7 @@ export default function HealthPage() {
           <TabsTrigger value="metrics">Metrics</TabsTrigger>
           <TabsTrigger value="workouts">Workouts</TabsTrigger>
           <TabsTrigger value="body">Body</TabsTrigger>
+          <TabsTrigger value="runway">Photo runway</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -667,6 +701,99 @@ export default function HealthPage() {
                 />
               </div>
             )}
+
+            {!loading ? (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <QuickMetricTile
+                  metricKey="weightKg"
+                  value={
+                    overview.latestWeight != null
+                      ? String(overview.latestWeight)
+                      : '—'
+                  }
+                  unit="kg"
+                  latest={overview.latestMetric}
+                />
+                <QuickMetricTile
+                  metricKey="bp"
+                  value={
+                    overview.latestMetric?.bloodPressureSystolic != null &&
+                    overview.latestMetric?.bloodPressureDiastolic != null
+                      ? `${overview.latestMetric.bloodPressureSystolic}/${overview.latestMetric.bloodPressureDiastolic}`
+                      : '—'
+                  }
+                  latest={overview.latestMetric}
+                />
+                <QuickMetricTile
+                  metricKey="heartRate"
+                  value={
+                    overview.latestMetric?.heartRate != null
+                      ? String(overview.latestMetric.heartRate)
+                      : '—'
+                  }
+                  unit="bpm"
+                  latest={overview.latestMetric}
+                />
+                <QuickMetricTile
+                  metricKey="spo2Pct"
+                  value={
+                    overview.latestMetric?.spo2Pct != null
+                      ? String(overview.latestMetric.spo2Pct)
+                      : '—'
+                  }
+                  unit="%"
+                  latest={overview.latestMetric}
+                />
+                <QuickMetricTile
+                  metricKey="temperatureC"
+                  value={
+                    overview.latestMetric?.temperatureC != null
+                      ? String(overview.latestMetric.temperatureC)
+                      : '—'
+                  }
+                  unit="°C"
+                  latest={overview.latestMetric}
+                />
+                <QuickMetricTile
+                  metricKey="bloodSugar"
+                  value={
+                    overview.latestMetric?.bloodSugar != null
+                      ? String(overview.latestMetric.bloodSugar)
+                      : '—'
+                  }
+                  latest={overview.latestMetric}
+                />
+                <QuickMetricTile
+                  metricKey="sleepHours"
+                  value={
+                    overview.latestMetric?.sleepHours != null
+                      ? String(overview.latestMetric.sleepHours)
+                      : '—'
+                  }
+                  unit="h"
+                  latest={overview.latestMetric}
+                />
+                <QuickMetricTile
+                  metricKey="waterMl"
+                  value={
+                    overview.latestMetric?.waterMl != null
+                      ? String(overview.latestMetric.waterMl)
+                      : '—'
+                  }
+                  unit="ml"
+                  latest={overview.latestMetric}
+                />
+                <QuickMetricTile
+                  metricKey="steps"
+                  value={
+                    overview.latestMetric?.steps != null
+                      ? String(overview.latestMetric.steps)
+                      : '—'
+                  }
+                  latest={overview.latestMetric}
+                />
+              </div>
+            ) : null}
 
             {!loading ? (
               <BmiPlannerCard
@@ -1111,6 +1238,169 @@ export default function HealthPage() {
                 </ul>
               )}
             </Card>
+          </motion.div>
+        </TabsContent>
+
+        <TabsContent value="runway">
+          <motion.div {...fade} className="space-y-4">
+            <Card glass>
+              <CardHeader>
+                <CardTitle>Body composition runway</CardTitle>
+              </CardHeader>
+              <p className="mb-3 text-sm text-text-muted">
+                Photo timeline with weight, waist, and BMI overlay — stored only on this device.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Input
+                  label="Date"
+                  type="date"
+                  value={photoDate}
+                  onChange={(e) => setPhotoDate(e.target.value)}
+                />
+                <Input
+                  label="Weight (kg)"
+                  type="number"
+                  value={photoWeight}
+                  onChange={(e) => setPhotoWeight(e.target.value)}
+                />
+                <Input
+                  label="Waist (cm)"
+                  type="number"
+                  value={photoWaist}
+                  onChange={(e) => setPhotoWaist(e.target.value)}
+                />
+                <Input
+                  label="Photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setPhotoBusy(true);
+                    void createBodyPhoto({
+                      date: photoDate,
+                      file,
+                      weightKg: parseOptional(photoWeight),
+                      waistCm: parseOptional(photoWaist),
+                      notes: photoNotes,
+                    })
+                      .then(() => {
+                        addToast('success', 'Photo added to runway');
+                        setPhotoNotes('');
+                      })
+                      .catch((err: Error) =>
+                        addToast('danger', err.message || 'Upload failed'),
+                      )
+                      .finally(() => setPhotoBusy(false));
+                  }}
+                  disabled={photoBusy}
+                />
+              </div>
+              <Textarea
+                className="mt-2"
+                label="Notes"
+                value={photoNotes}
+                onChange={(e) => setPhotoNotes(e.target.value)}
+                rows={2}
+              />
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Waist / BMI / Weight overlay</CardTitle>
+              </CardHeader>
+              {(photos ?? []).length === 0 ? (
+                <EmptyState
+                  icon={Scale}
+                  title="No runway photos yet"
+                  description="Add a photo with weight or waist to chart progress."
+                />
+              ) : (
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={[...(photos ?? [])]
+                        .slice()
+                        .reverse()
+                        .map((p) => ({
+                          label: formatDate(p.date, 'MMM d'),
+                          weight: p.weightKg,
+                          waist: p.waistCm,
+                          bmi: p.bmi,
+                        }))}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} width={36} />
+                      <Tooltip contentStyle={chartTooltipStyle()} />
+                      <Line
+                        type="monotone"
+                        dataKey="weight"
+                        stroke="var(--color-accent, #f0b429)"
+                        strokeWidth={2}
+                        connectNulls
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="waist"
+                        stroke="#38BDF8"
+                        strokeWidth={2}
+                        connectNulls
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="bmi"
+                        stroke="#34D399"
+                        strokeWidth={2}
+                        connectNulls
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </Card>
+
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {(photos ?? []).map((p) => (
+                <li
+                  key={p.id}
+                  className="overflow-hidden rounded-[var(--radius-md)] border border-border"
+                >
+                  <img
+                    src={p.imageData}
+                    alt={`Body ${p.date}`}
+                    className="aspect-[3/4] w-full object-cover"
+                  />
+                  <div className="space-y-1 p-3">
+                    <p className="text-sm font-medium">{formatDate(p.date)}</p>
+                    <p className="text-xs text-text-muted">
+                      {p.weightKg != null ? `${p.weightKg} kg` : '—'}
+                      {p.waistCm != null ? ` · waist ${p.waistCm}` : ''}
+                      {p.bmi != null ? ` · BMI ${p.bmi}` : ''}
+                    </p>
+                    <Input
+                      label="Edit notes"
+                      value={p.notes ?? ''}
+                      onChange={(e) =>
+                        void updateBodyPhoto(p.id, { notes: e.target.value })
+                      }
+                    />
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() =>
+                        void deleteBodyPhoto(p.id).then(() =>
+                          addToast('info', 'Photo removed'),
+                        )
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                      Delete
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </motion.div>
         </TabsContent>
       </Tabs>

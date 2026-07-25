@@ -6,6 +6,7 @@ import type {
   AuthCredentials,
   BibleReading,
   BodyMeasurement,
+  BodyPhoto,
   Book,
   Budget,
   Business,
@@ -16,6 +17,7 @@ import type {
   CoachChatMessage,
   Course,
   DailyCheckIn,
+  FaithGrindLink,
   FinanceTransaction,
   Goal,
   GratitudeEntry,
@@ -33,9 +35,11 @@ import type {
   Quote,
   SavingsGoal,
   SpiritualEntry,
+  StreakCovenant,
   Task,
   UnlockedAchievement,
   UserProfile,
+  WarRoomSession,
   WishlistItem,
   Workout,
 } from '@/types';
@@ -81,22 +85,29 @@ export interface G4Tables {
   settings: AppSettings;
   activityLogs: ActivityLog;
   quotes: Quote;
+  streakCovenants: StreakCovenant;
+  bodyPhotos: BodyPhoto;
+  faithGrindLinks: FaithGrindLink;
+  warRoomSessions: WarRoomSession;
 }
 
 export type TableName = keyof G4Tables;
 
+type LegacyTables = Exclude<
+  TableName,
+  | 'businessIdeas'
+  | 'prayerRequests'
+  | 'notes'
+  | 'dailyCheckIns'
+  | 'coachMessages'
+  | 'streakCovenants'
+  | 'bodyPhotos'
+  | 'faithGrindLinks'
+  | 'warRoomSessions'
+>;
+
 /** Dexie index definitions for version 1. */
-export const SCHEMA_V1: Record<
-  Exclude<
-    TableName,
-    | 'businessIdeas'
-    | 'prayerRequests'
-    | 'notes'
-    | 'dailyCheckIns'
-    | 'coachMessages'
-  >,
-  string
-> = {
+export const SCHEMA_V1: Record<LegacyTables, string> = {
   credentials: 'id, username',
   profiles: 'id, username',
   habits: 'id, archived, sortOrder, pillar',
@@ -135,7 +146,16 @@ export const SCHEMA_V1: Record<
 
 /** Version 2 adds business ideas, prayer requests, and business status index. */
 export const SCHEMA_V2: Record<
-  Exclude<TableName, 'notes' | 'dailyCheckIns' | 'coachMessages'>,
+  Exclude<
+    TableName,
+    | 'notes'
+    | 'dailyCheckIns'
+    | 'coachMessages'
+    | 'streakCovenants'
+    | 'bodyPhotos'
+    | 'faithGrindLinks'
+    | 'warRoomSessions'
+  >,
   string
 > = {
   ...SCHEMA_V1,
@@ -146,7 +166,14 @@ export const SCHEMA_V2: Record<
 
 /** Version 3 adds Notes Vault + Daily Check-ins. */
 export const SCHEMA_V3: Record<
-  Exclude<TableName, 'coachMessages'>,
+  Exclude<
+    TableName,
+    | 'coachMessages'
+    | 'streakCovenants'
+    | 'bodyPhotos'
+    | 'faithGrindLinks'
+    | 'warRoomSessions'
+  >,
   string
 > = {
   ...SCHEMA_V2,
@@ -155,7 +182,22 @@ export const SCHEMA_V3: Record<
 };
 
 /** Version 4 adds AI Coach chat history. */
-export const SCHEMA_V4: Record<TableName, string> = {
+export const SCHEMA_V4: Record<
+  Exclude<
+    TableName,
+    'streakCovenants' | 'bodyPhotos' | 'faithGrindLinks' | 'warRoomSessions'
+  >,
+  string
+> = {
   ...SCHEMA_V3,
   coachMessages: 'id, role, createdAt',
+};
+
+/** Version 5 — covenants, body photos, faith×grind, war room. */
+export const SCHEMA_V5: Record<TableName, string> = {
+  ...SCHEMA_V4,
+  streakCovenants: 'id, status, startDate, endDate',
+  bodyPhotos: 'id, date, createdAt',
+  faithGrindLinks: 'id, habitId, active, createdAt',
+  warRoomSessions: 'id, weekKey, createdAt',
 };

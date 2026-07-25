@@ -245,4 +245,14 @@ export async function toggleHabitToday(habit: Habit): Promise<void> {
     entityId: habit.id,
     createdAt: now,
   });
+
+  // Faith × Grind unlock when completing (not when un-completing).
+  const after = await db.habitLogs
+    .where('[habitId+date]')
+    .equals([habit.id, today])
+    .first();
+  if (after && after.count >= habit.targetPerDay) {
+    const { unlockFaithForHabit } = await import('@/features/faithGrind/hooks');
+    void unlockFaithForHabit(habit.id, habit.name);
+  }
 }

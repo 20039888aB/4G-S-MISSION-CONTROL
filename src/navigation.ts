@@ -7,6 +7,7 @@ import {
   CheckSquare,
   ClipboardList,
   Cross,
+  Crosshair,
   Gift,
   Goal,
   GraduationCap,
@@ -39,6 +40,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Mission',
     items: [
       { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+      { label: 'Mission Systems', path: '/mission-systems', icon: Crosshair },
       { label: 'Daily Review', path: '/review', icon: ClipboardList },
       { label: 'AI Coach', path: '/ai-coach', icon: Sparkles },
       { label: 'Achievements', path: '/achievements', icon: Award },
