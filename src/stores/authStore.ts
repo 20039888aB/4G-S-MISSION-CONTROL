@@ -12,6 +12,13 @@ interface SessionPayload {
   authenticatedAt: string;
 }
 
+export interface LocalAccountHint {
+  username: string;
+  displayName: string;
+}
+
+export type LoginResult = 'ok' | 'unknown_user' | 'bad_password';
+
 interface AuthState {
   isAuthenticated: boolean;
   isInitialized: boolean;
@@ -21,12 +28,19 @@ interface AuthState {
   initialize: () => Promise<void>;
   /** Re-check IndexedDB for an existing account (after updates / recovery). */
   refreshSetupState: () => Promise<boolean>;
+  /** Username / display name stored on this device (no password needed). */
+  getLocalAccount: () => Promise<LocalAccountHint | null>;
   setup: (
     username: string,
     password: string,
     displayName: string,
   ) => Promise<void>;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<LoginResult>;
+  /**
+   * Device-local password reset. Safe because all data lives only on this phone —
+   * owning the device is the recovery factor.
+   */
+  resetPasswordOnDevice: (newPassword: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -160,6 +174,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return setupComplete;
   },
 
+  getLocalAccount: async () => {
+    await db.open();
+    const credentials = await db.credentials.toCollection().first();
+    if (!credentials) return null;
+    const profile = await db.profiles
+      .where('username')
+      .equals(credentials.username)
+      .first();
+    return {
+      username: credentials.username,
+      displayName: profile?.displayName ?? credentials.username,
+    };
+  },
+
   setup: async (username, password, displayName) => {
     await db.open();
     const existing = await db.credentials.count();
@@ -214,10 +242,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username, password) => {
     await db.open();
     const credentials = await findCredentialsByUsername(username);
-    if (!credentials) return false;
+    if (!credentials) return 'unknown_user';
 
     const ok = await verifyPassword(password, credentials.passwordHash);
-    if (!ok) return false;
+    if (!ok) return 'bad_password';
 
     const profile = await db.profiles
       .where('username')
@@ -232,7 +260,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       username: credentials.username,
       displayName: profile?.displayName ?? credentials.username,
     });
-    return true;
+    return 'ok';
+  },
+
+  resetPasswordOnDevice: async (newPassword) => {
+    await db.open();
+    const credentials = await db.credentials.toCollection().first();
+    if (!credentials) {
+      throw new Error('No account found on this device.');
+    }
+    if (newPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters.');
+    }
+
+    const now = new Date().toISOString();
+    const passwordHash = await hashPassword(newPassword);
+    await db.credentials.update(credentials.id, {
+      passwordHash,
+      updatedAt: now,
+    });
+
+    const profile = await db.profiles
+      .where('username')
+      .equals(credentials.username)
+      .first();
+
+    writeSession(credentials.username);
+    set({
+      isAuthenticated: true,
+      isSetupComplete: true,
+      isInitialized: true,
+      username: credentials.username,
+      displayName: profile?.displayName ?? credentials.username,
+    });
   },
 
   logout: () => {
