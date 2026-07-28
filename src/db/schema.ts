@@ -42,6 +42,7 @@ import type {
   WarRoomSession,
   WishlistItem,
   Workout,
+  GoalDayLog,
 } from '@/types';
 
 /** Table map for typed Dexie access. */
@@ -51,6 +52,7 @@ export interface G4Tables {
   habits: Habit;
   habitLogs: HabitLog;
   goals: Goal;
+  goalDayLogs: GoalDayLog;
   tasks: Task;
   healthMetrics: HealthMetric;
   workouts: Workout;
@@ -104,6 +106,7 @@ type LegacyTables = Exclude<
   | 'bodyPhotos'
   | 'faithGrindLinks'
   | 'warRoomSessions'
+  | 'goalDayLogs'
 >;
 
 /** Dexie index definitions for version 1. */
@@ -155,6 +158,7 @@ export const SCHEMA_V2: Record<
     | 'bodyPhotos'
     | 'faithGrindLinks'
     | 'warRoomSessions'
+    | 'goalDayLogs'
   >,
   string
 > = {
@@ -173,6 +177,7 @@ export const SCHEMA_V3: Record<
     | 'bodyPhotos'
     | 'faithGrindLinks'
     | 'warRoomSessions'
+    | 'goalDayLogs'
   >,
   string
 > = {
@@ -185,7 +190,11 @@ export const SCHEMA_V3: Record<
 export const SCHEMA_V4: Record<
   Exclude<
     TableName,
-    'streakCovenants' | 'bodyPhotos' | 'faithGrindLinks' | 'warRoomSessions'
+    | 'streakCovenants'
+    | 'bodyPhotos'
+    | 'faithGrindLinks'
+    | 'warRoomSessions'
+    | 'goalDayLogs'
   >,
   string
 > = {
@@ -194,7 +203,10 @@ export const SCHEMA_V4: Record<
 };
 
 /** Version 5 — covenants, body photos, faith×grind, war room. */
-export const SCHEMA_V5: Record<TableName, string> = {
+export const SCHEMA_V5: Record<
+  Exclude<TableName, 'goalDayLogs'>,
+  string
+> = {
   ...SCHEMA_V4,
   streakCovenants: 'id, status, startDate, endDate',
   bodyPhotos: 'id, date, createdAt',
@@ -203,7 +215,13 @@ export const SCHEMA_V5: Record<TableName, string> = {
 };
 
 /** Version 6 — index createdAt on covenants for stable listing. */
-export const SCHEMA_V6: Record<TableName, string> = {
+export const SCHEMA_V6: Record<Exclude<TableName, 'goalDayLogs'>, string> = {
   ...SCHEMA_V5,
   streakCovenants: 'id, status, startDate, endDate, createdAt',
+};
+
+/** Version 7 — per-day goal progress history. */
+export const SCHEMA_V7: Record<TableName, string> = {
+  ...SCHEMA_V6,
+  goalDayLogs: 'id, goalId, date, [goalId+date]',
 };

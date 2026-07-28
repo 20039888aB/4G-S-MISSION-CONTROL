@@ -7,6 +7,7 @@ import {
   SCHEMA_V4,
   SCHEMA_V5,
   SCHEMA_V6,
+  SCHEMA_V7,
   type G4Tables,
   type TableName,
 } from '@/db/schema';
@@ -22,6 +23,7 @@ export class G4Database extends Dexie {
   habits!: EntityTable<G4Tables['habits'], 'id'>;
   habitLogs!: EntityTable<G4Tables['habitLogs'], 'id'>;
   goals!: EntityTable<G4Tables['goals'], 'id'>;
+  goalDayLogs!: EntityTable<G4Tables['goalDayLogs'], 'id'>;
   tasks!: EntityTable<G4Tables['tasks'], 'id'>;
   healthMetrics!: EntityTable<G4Tables['healthMetrics'], 'id'>;
   workouts!: EntityTable<G4Tables['workouts'], 'id'>;
@@ -82,6 +84,8 @@ export class G4Database extends Dexie {
      * Same stores — additive only, never wipes user data.
      */
     this.version(60).stores(SCHEMA_V6);
+    /** Per-day goal progress logs (must be > 60 for phones already at IDB 600). */
+    this.version(61).stores(SCHEMA_V7);
   }
 }
 

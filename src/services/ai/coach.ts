@@ -165,6 +165,32 @@ export function generateInsights(snapshot: DataSnapshot): Insight[] {
     );
   }
 
+  if (snapshot.goalWeek.daysWorked === 0 && snapshot.goals.length > 0) {
+    insights.push(
+      insight(
+        'goal-week-quiet',
+        'goals',
+        'warning',
+        'No goal work logged this week yet — days are the real scoreboard.',
+        'goals',
+        snapshot.goalWeek.coachingLine,
+        [{ label: 'Log goal work', href: '/goals' }],
+      ),
+    );
+  } else if (snapshot.goalWeek.daysWorked >= 4) {
+    insights.push(
+      insight(
+        'goal-week-strong',
+        'goals',
+        'success',
+        snapshot.goalWeek.headline,
+        'goals',
+        snapshot.goalWeek.coachingLine,
+        [{ label: 'See weekly pulse', href: '/goals' }],
+      ),
+    );
+  }
+
   if (snapshot.overdueTasks > 0) {
     insights.push(
       insight(

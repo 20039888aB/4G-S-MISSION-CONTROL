@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { GoalWeekStrip } from '@/components/goals/GoalWeekStrip';
+import { WeeklyGoalsPulse } from '@/components/goals/WeeklyGoalsPulse';
 import {
   Badge,
   Button,
@@ -16,10 +18,14 @@ import {
 import {
   createGoal,
   deleteGoal,
+  localDateKey,
+  markGoalWorkedToday,
   newMilestone,
   toggleMilestone,
   updateGoal,
+  useGoalDayLogsLive,
   useGoalsLive,
+  useWeeklyGoalReport,
   type GoalInput,
 } from '@/features/goals/hooks';
 import { cn, formatDate } from '@/lib/utils';
@@ -178,6 +184,8 @@ function GoalForm({
 
 export default function GoalsPage() {
   const goals = useGoalsLive();
+  const dayLogs = useGoalDayLogsLive(14);
+  const weekly = useWeeklyGoalReport();
   const addToast = useUiStore((s) => s.addToast);
   const [pillarFilter, setPillarFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<GoalStatus | 'all'>('all');
@@ -185,6 +193,7 @@ export default function GoalsPage() {
   const [editing, setEditing] = useState<Goal | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [toDelete, setToDelete] = useState<Goal | null>(null);
+  const today = localDateKey();
 
   const filtered = useMemo(() => {
     return (goals ?? []).filter((g) => {
@@ -215,7 +224,7 @@ export default function GoalsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Goals"
-        description="Long-term vision broken into milestones you can finish."
+        description="Track daily progress separately, then review the week — one day at a time."
         actions={
           <Button
             onClick={() => {
@@ -228,6 +237,8 @@ export default function GoalsPage() {
           </Button>
         }
       />
+
+      <WeeklyGoalsPulse report={weekly} />
 
       <div className="flex flex-wrap gap-3">
         <Select
@@ -247,7 +258,7 @@ export default function GoalsPage() {
       {!goals ? null : filtered.length === 0 ? (
         <EmptyState
           title="No goals match"
-          description="Set a target worth grinding for — then track every milestone."
+          description="Set a target worth grinding for — then log work every day."
           action={
             <Button onClick={() => setOpen(true)}>
               <Plus className="size-4" />
@@ -260,6 +271,9 @@ export default function GoalsPage() {
           <AnimatePresence mode="popLayout">
             {filtered.map((goal) => {
               const u = urgency(goal.targetDate);
+              const workedToday = (dayLogs ?? []).some(
+                (l) => l.goalId === goal.id && l.date === today && l.worked,
+              );
               return (
                 <motion.div
                   key={goal.id}
@@ -290,6 +304,7 @@ export default function GoalsPage() {
                       {goal.pillar ? <Badge>{goal.pillar}</Badge> : null}
                       {u === 'overdue' ? <Badge tone="danger">Overdue</Badge> : null}
                       {u === 'soon' ? <Badge tone="warning">Due soon</Badge> : null}
+                      {workedToday ? <Badge tone="success">Worked today</Badge> : null}
                       {goal.targetDate ? (
                         <span className="text-xs text-text-muted">
                           Target {formatDate(goal.targetDate)}
@@ -302,6 +317,12 @@ export default function GoalsPage() {
                         <span>{goal.progress}%</span>
                       </div>
                       <Progress value={goal.progress} />
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-medium tracking-wide text-text-muted uppercase">
+                        Last 7 days
+                      </p>
+                      <GoalWeekStrip goal={goal} logs={dayLogs ?? []} />
                     </div>
                     {goal.milestones.length > 0 ? (
                       <ul className="space-y-1.5">
@@ -330,16 +351,31 @@ export default function GoalsPage() {
                         ))}
                       </ul>
                     ) : null}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setEditing(goal);
-                        setOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      {goal.status === 'active' ? (
+                        <Button
+                          variant={workedToday ? 'ghost' : 'secondary'}
+                          size="sm"
+                          disabled={workedToday}
+                          onClick={async () => {
+                            await markGoalWorkedToday(goal);
+                            addToast('success', `Logged work on “${goal.title}”`);
+                          }}
+                        >
+                          {workedToday ? 'Logged for today' : 'Worked today'}
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setEditing(goal);
+                          setOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </Card>
                 </motion.div>
               );
@@ -370,7 +406,8 @@ export default function GoalsPage() {
 
       <Modal open={Boolean(toDelete)} onClose={() => setToDelete(null)} title="Delete goal?">
         <p className="text-sm text-text-muted">
-          Permanently remove <strong className="text-text">{toDelete?.title}</strong>?
+          Permanently remove <strong className="text-text">{toDelete?.title}</strong>? Day
+          history for this goal will also be cleared.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setToDelete(null)}>

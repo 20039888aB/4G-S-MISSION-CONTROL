@@ -272,35 +272,53 @@ export function replyAsCoach(
       if (snapshot.goals.length === 0) {
         return {
           intent,
-          message: `You don’t have an active goal yet, ${name}. Best selves aim at something concrete.\n\nCreate one 90-day goal under Goals — faith, fitness, finance, skill, or business — then link daily tasks to it.`,
+          message: `You don’t have an active goal yet, ${name}. Best selves aim at something concrete.\n\nCreate one 90-day goal under Goals — faith, fitness, finance, skill, or business — then tap “Worked today” after each focused block.`,
           actions: [{ label: 'Create goal', href: '/goals' }],
           followUps: baseFollowUps,
         };
       }
       const lines = snapshot.goals
         .slice(0, 5)
-        .map(
-          (g) =>
-            `• **${g.title}** — ${g.progress}%${g.openMilestones ? ` · ${g.openMilestones} open milestones` : ''}`,
-        )
+        .map((g) => {
+          const todayTag = g.workedToday ? ' · ✓ today' : '';
+          const weekTag =
+            g.weekDaysWorked != null
+              ? ` · ${g.weekDaysWorked}/7 days`
+              : '';
+          return `• **${g.title}** — ${g.progress}%${weekTag}${todayTag}${
+            g.openMilestones ? ` · ${g.openMilestones} open milestones` : ''
+          }`;
+        })
         .join('\n');
       const weakest = snapshot.goals[0]!;
+      const week = snapshot.goalWeek;
       return {
         intent,
         message: [
           `Goal board (${snapshot.goals.length} active · ${snapshot.goalsCompleted} completed lifetime):`,
           lines,
           '',
+          `Weekly pulse: **${week.daysWorked}/7 days** · ${week.goalsTouched} goals touched · net +${week.netProgressThisWeek}% · momentum **${week.momentum}**.`,
+          week.headline,
+          '',
           `Coach focus: **${weakest.title}**.`,
-          weakest.progress < 40
-            ? 'It’s early-stage. Define the next milestone in one sentence, then schedule a 25-minute block.'
-            : 'You’re mid-climb. Close one milestone this week — progress loves finished loops.',
+          !weakest.workedToday
+            ? 'Not logged yet today — even 15 focused minutes counts. Hit “Worked today” on Goals.'
+            : weakest.progress < 40
+              ? 'Logged today — good. Define the next milestone in one sentence, then schedule a 25-minute block.'
+              : 'You’re mid-climb and already logged today. Close one milestone this week — progress loves finished loops.',
+          '',
+          week.coachingLine,
         ].join('\n'),
         actions: [
           { label: 'Goals', href: '/goals' },
           { label: 'Link a task', href: '/tasks' },
         ],
-        followUps: baseFollowUps,
+        followUps: [
+          'How is my weekly progress?',
+          'What should I focus on today?',
+          ...baseFollowUps.slice(0, 1),
+        ],
       };
     }
 
@@ -522,10 +540,14 @@ export function replyAsCoach(
           `Progress review for ${name}:`,
           `• Best-Self Score: **${score}/100**`,
           `• Habits today: ${snapshot.habitsCompletedToday}/${snapshot.habitsTargetToday}`,
+          `• Goals this week: ${snapshot.goalWeek.daysWorked}/7 days · +${snapshot.goalWeek.netProgressThisWeek}% · ${snapshot.goalWeek.momentum}`,
           `• Tasks done today: ${snapshot.tasksDoneToday} · overdue: ${snapshot.overdueTasks}`,
           `• Prayer days (7): ${snapshot.prayersLoggedLast7}`,
           `• Study hours (7): ${snapshot.studyHoursLast7.toFixed(1)}`,
           `• Money: spent ${snapshot.spendingLabel} / earned ${snapshot.incomeLabel}`,
+          '',
+          snapshot.goalWeek.headline,
+          snapshot.goalWeek.coachingLine,
           '',
           snapshot.checkInToday
             ? 'Daily Review already saved — excellent loop closure.'
@@ -537,6 +559,7 @@ export function replyAsCoach(
         ].join('\n'),
         actions: [
           { label: 'Daily Review', href: '/review' },
+          { label: 'Goals', href: '/goals' },
           { label: 'Statistics', href: '/statistics' },
         ],
         followUps: baseFollowUps,

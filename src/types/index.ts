@@ -194,6 +194,23 @@ export interface Goal {
   updatedAt: string;
 }
 
+/** One row per goal per calendar day — history for weekly rollups. */
+export interface GoalDayLog {
+  id: string;
+  goalId: string;
+  /** Local calendar day YYYY-MM-DD */
+  date: string;
+  /** Goal progress % recorded that day */
+  progress: number;
+  previousProgress: number;
+  delta: number;
+  /** User marked intentional work on this goal today */
+  worked: boolean;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TaskSubtask {
   id: string;
   title: string;

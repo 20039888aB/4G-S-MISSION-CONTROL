@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/authStore';
 /** Live clock + time-aware quote that refreshes every minute. */
 export function useTimedQuote() {
   const displayName = useAuthStore((s) => s.displayName);
+  const username = useAuthStore((s) => s.username);
   const [now, setNow] = useState(() => new Date());
   const quotes = useLiveQuery(() => db.quotes.toArray(), []);
 
@@ -24,9 +25,11 @@ export function useTimedQuote() {
     return selectQuoteForDate(quotes, now);
   }, [quotes, now]);
 
+  const greetingName = displayName?.trim() || username?.trim() || null;
+
   const greeting = useMemo(
-    () => formatGreeting(displayName, now),
-    [displayName, now],
+    () => formatGreeting(greetingName, now),
+    [greetingName, now],
   );
 
   return {

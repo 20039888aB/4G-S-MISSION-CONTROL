@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Activity,
@@ -9,6 +10,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/brand/Logo';
+import { TypewriterGreeting } from '@/components/brand/TypewriterGreeting';
+import { WeeklyGoalsPulse } from '@/components/goals/WeeklyGoalsPulse';
 import {
   Badge,
   Card,
@@ -19,6 +22,7 @@ import {
   StatCard,
 } from '@/components/ui';
 import { db } from '@/db/database';
+import { useWeeklyGoalReport } from '@/features/goals/hooks';
 import { useMissionScores } from '@/hooks/useMissionScores';
 import { toggleHabitToday } from '@/features/habits/hooks';
 import { useTimedQuote } from '@/hooks/useTimedQuote';
@@ -36,6 +40,7 @@ export default function DashboardPage() {
   const scores = useMissionScores();
   const { quote, greeting, context, poolSize, loading: quoteLoading } =
     useTimedQuote();
+  const weeklyGoals = useWeeklyGoalReport();
   const addToast = useUiStore((s) => s.addToast);
   const setCommandOpen = useUiStore((s) => s.setCommandPaletteOpen);
 
@@ -77,35 +82,46 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <Card glass padding="none" className="overflow-hidden">
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-          <div className="flex items-center gap-4">
-            <Logo size="md" variant="full" showWordmark={false} />
-            <div className="min-w-0">
-              <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">
-                {scores.loading ? 'Mission Control' : callsign}
-              </p>
-              <p className="text-[10px] text-text-muted">
-                Mission Briefing · {greeting.label} ·{' '}
-                <Link to="/mission-systems" className="text-accent hover:underline">
-                  Mission Systems
-                </Link>
-              </p>
-              <h2 className="font-display text-2xl font-bold text-text sm:text-3xl">
-                {greeting.line}
-              </h2>
-              <p className="mt-1 text-sm text-text-muted">
-                {formatDate(greeting.now, 'EEEE, MMM d')} · {greeting.subline} — stay
-                locked on the 4 G&apos;s.
-              </p>
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+      >
+        <Card glass padding="none" className="overflow-hidden">
+          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex items-center gap-4">
+              <Logo size="md" variant="full" showWordmark={false} />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">
+                  {scores.loading ? 'Mission Control' : callsign}
+                </p>
+                <p className="text-[10px] text-text-muted">
+                  Mission Briefing · {greeting.label} ·{' '}
+                  <Link to="/mission-systems" className="text-accent hover:underline">
+                    Mission Systems
+                  </Link>
+                </p>
+                <TypewriterGreeting
+                  text={greeting.line}
+                  className="mt-0.5 text-2xl sm:text-3xl"
+                />
+                <p className="mt-1 text-sm text-text-muted">
+                  {formatDate(greeting.now, 'EEEE, MMM d')} · {greeting.subline} — stay
+                  locked on the 4 G&apos;s.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="accent">{greeting.label}</Badge>
+              <Badge tone="neutral">
+                {poolSize ? `${poolSize} timed quotes` : 'Syncing quotes'}
+              </Badge>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="accent">{greeting.label}</Badge>
-            <Badge tone="neutral">{poolSize ? `${poolSize} timed quotes` : 'Syncing quotes'}</Badge>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      </motion.div>
+
+      <WeeklyGoalsPulse report={weeklyGoals} />
 
       <Card glass>
         <CardHeader>

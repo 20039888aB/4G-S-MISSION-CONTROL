@@ -1,18 +1,29 @@
 import { db } from '@/db/database';
 import { computeStreak } from '@/features/habits/hooks';
+import {
+  buildWeeklyGoalReport,
+  localDateKey,
+  shiftLocalDateKey,
+} from '@/features/goals/hooks';
 import { getTimeContext } from '@/lib/timeContext';
 import { formatCurrency } from '@/lib/utils';
 import type { DataSnapshot, GoalBrief, HabitGap } from '@/services/ai/types';
+import type { GoalDayLog } from '@/types';
 
 function todayKey(d = new Date()) {
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
 }
 
 function daysAgoKey(days: number) {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  return shiftLocalDateKey(todayKey(), -days);
+}
+
+async function loadGoalDayLogs(weekStart: string): Promise<GoalDayLog[]> {
+  try {
+    return await db.goalDayLogs.where('date').aboveOrEqual(weekStart).toArray();
+  } catch {
+    return [];
+  }
 }
 
 /** Build a rich live snapshot of the operator's life data for the coach. */
@@ -27,6 +38,7 @@ export async function buildLifeSnapshot(now = new Date()): Promise<DataSnapshot>
     habits,
     habitLogs,
     goals,
+    goalDayLogs,
     tasks,
     prayerLogs,
     bibleReadings,
@@ -51,6 +63,7 @@ export async function buildLifeSnapshot(now = new Date()): Promise<DataSnapshot>
     db.habits.filter((h) => !h.archived).toArray(),
     db.habitLogs.toArray(),
     db.goals.toArray(),
+    loadGoalDayLogs(weekStart),
     db.tasks.toArray(),
     db.prayerLogs.toArray(),
     db.bibleReadings.toArray(),
@@ -168,15 +181,26 @@ export async function buildLifeSnapshot(now = new Date()): Promise<DataSnapshot>
   }
 
   const activeGoals = goals.filter((g) => g.status === 'active');
+  const weekReport = buildWeeklyGoalReport(goals, goalDayLogs, now);
   const goalBriefs: GoalBrief[] = activeGoals
-    .map((g) => ({
-      id: g.id,
-      title: g.title,
-      progress: g.progress,
-      pillar: g.pillar,
-      targetDate: g.targetDate,
-      openMilestones: g.milestones.filter((m) => !m.completed).length,
-    }))
+    .map((g) => {
+      const gLogs = goalDayLogs.filter((l) => l.goalId === g.id);
+      return {
+        id: g.id,
+        title: g.title,
+        progress: g.progress,
+        pillar: g.pillar,
+        targetDate: g.targetDate,
+        openMilestones: g.milestones.filter((m) => !m.completed).length,
+        workedToday: gLogs.some((l) => l.date === today && l.worked),
+        weekDaysWorked: new Set(
+          gLogs.filter((l) => l.worked && l.date >= weekStart).map((l) => l.date),
+        ).size,
+        weekDelta: gLogs
+          .filter((l) => l.date >= weekStart)
+          .reduce((s, l) => s + Math.max(0, l.delta), 0),
+      };
+    })
     .sort((a, b) => a.progress - b.progress);
 
   const openTasks = tasks.filter(
@@ -259,6 +283,15 @@ export async function buildLifeSnapshot(now = new Date()): Promise<DataSnapshot>
     gratitudeToday: gSet.has(today),
     goals: goalBriefs,
     goalsCompleted: goals.filter((g) => g.status === 'completed').length,
+    goalWeek: {
+      daysWorked: weekReport.daysWorked,
+      goalsTouched: weekReport.goalsTouched,
+      netProgressThisWeek: weekReport.netProgressThisWeek,
+      avgProgressNow: weekReport.avgProgressNow,
+      momentum: weekReport.momentum,
+      headline: weekReport.headline,
+      coachingLine: weekReport.coachingLine,
+    },
     openTasks: openTasks.length,
     overdueTasks: overdueTasks.length,
     tasksDoneToday,

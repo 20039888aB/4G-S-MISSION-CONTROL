@@ -37,6 +37,19 @@ export interface GoalBrief {
   pillar?: G4Pillar;
   targetDate?: string;
   openMilestones: number;
+  workedToday?: boolean;
+  weekDaysWorked?: number;
+  weekDelta?: number;
+}
+
+export interface GoalWeeklyBrief {
+  daysWorked: number;
+  goalsTouched: number;
+  netProgressThisWeek: number;
+  avgProgressNow: number;
+  momentum: 'rising' | 'steady' | 'cooling' | 'quiet';
+  headline: string;
+  coachingLine: string;
 }
 
 export interface DataSnapshot {
@@ -82,6 +95,7 @@ export interface DataSnapshot {
 
   goals: GoalBrief[];
   goalsCompleted: number;
+  goalWeek: GoalWeeklyBrief;
   openTasks: number;
   overdueTasks: number;
   tasksDoneToday: number;
