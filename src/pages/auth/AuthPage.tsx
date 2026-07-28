@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthAtmosphere } from '@/components/auth/AuthAtmosphere';
 import { Logo } from '@/components/brand/Logo';
 import { Button, Input, Skeleton } from '@/components/ui';
 import { useTimedQuote } from '@/hooks/useTimedQuote';
+import { hardRefreshApp } from '@/lib/hardRefresh';
 import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 
@@ -315,9 +316,10 @@ export default function AuthPage() {
               Enter Mission Control
             </Button>
 
-            <button
+            <Button
               type="button"
-              className="w-full text-center text-sm text-[#F0B429] hover:underline"
+              variant="secondary"
+              className="w-full"
               onClick={() => {
                 setError(null);
                 setPassword('');
@@ -325,7 +327,16 @@ export default function AuthPage() {
                 setMode('reset');
               }}
             >
-              Forgot password? Reset on this device
+              Forgot password — reset on this device
+            </Button>
+
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-1.5 text-center text-xs text-text-muted hover:text-[#F0B429]"
+              onClick={() => void hardRefreshApp({ hash: '#/login' })}
+            >
+              <RefreshCw className="size-3.5" />
+              Missing reset button? Refresh app files
             </button>
           </form>
         ) : null}
